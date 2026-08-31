@@ -39,8 +39,15 @@ async def start_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Por favor, informe seu número de **celular com DDD** (exemplo: `+5571993198981` ou `71993198981`):"
     )
     if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(msg_text, parse_mode="Markdown")
+        try:
+            await update.callback_query.answer()
+        except Exception:
+            pass
+        try:
+            await update.callback_query.edit_message_text(msg_text, parse_mode="Markdown")
+        except Exception:
+            if update.effective_chat:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=msg_text, parse_mode="Markdown")
     else:
         await update.message.reply_text(msg_text, parse_mode="Markdown")
     return AUTH_PHONE

@@ -30,6 +30,26 @@ class RubiApiClient:
             return self.token
         raise RuntimeError("Resposta de login inválida.")
 
+    def ensure_login(self, phone_number: str, pin: str, name: str = None) -> str:
+        if not phone_number or not pin:
+            raise ValueError("Telefone e PIN são obrigatórios para autenticação.")
+
+        try:
+            tok = self.login(phone_number, pin)
+            if tok:
+                return tok
+        except Exception as e:
+            logger.info(f"[RUBI API] Login inicial para {phone_number} não efetuado ({e}). Criando cadastro...")
+
+        reg_res = self.register(name or "Usuário Telegram", phone_number, pin)
+        if isinstance(reg_res, dict) and "token" in reg_res:
+            self.token = reg_res["token"]
+            self.phone_number = phone_number
+            self.pin = pin
+            return self.token
+
+        return self.login(phone_number, pin)
+
     def register(self, name: str, phone_number: str, pin: str) -> dict:
         payload = {
             "name": name,

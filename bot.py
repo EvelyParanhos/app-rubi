@@ -2,12 +2,14 @@ import os
 import logging
 from dotenv import load_dotenv
 from telegram import Update
+from telegram.request import HTTPXRequest
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
 )
+from telegram.error import TimedOut, NetworkError
 
 from handlers.auth import get_auth_conversation_handler, get_main_menu_keyboard
 from handlers.onboarding import get_onboarding_conversation_handler
@@ -15,7 +17,6 @@ from handlers.transaction import get_transaction_conversation_handler
 from handlers.card import get_card_conversation_handler
 from handlers.settlement import handle_acerto, execute_quitar_acerto
 from handlers.statement import handle_extrato, handle_main_menu
-from auth_manager import is_authenticated
 
 load_dotenv()
 
@@ -27,19 +28,31 @@ logging.basicConfig(
 logger = logging.getLogger("RubiBot")
 
 async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(f"[ERRO GLOBAL BOT] Exceção não tratada: {context.error}", exc_info=context.error)
+    logger.error(f"[ERRO BOT] Exceção capturada: {context.error}")
 
-    msg = "❌ Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente em instantes."
+    msg = "❌ Ocorreu um erro temporário na comunicação. Por favor, tente novamente em instantes."
 
     if isinstance(update, Update):
+        chat_id = update.effective_chat.id if update.effective_chat else None
+        
         if update.callback_query:
             try:
-                await update.callback_query.answer("Ocorreu um erro no servidor.", show_alert=True)
-                await update.callback_query.edit_message_text(msg, reply_markup=get_main_menu_keyboard())
+                await update.callback_query.answer("Ocorreu uma instabilidade. Tente novamente.", show_alert=True)
             except Exception:
                 pass
+            try:
+                await update.callback_query.edit_message_text(msg, reply_markup=get_main_menu_keyboard())
+            except Exception:
+                if chat_id:
+                    try:
+                        await context.bot.send_message(chat_id=chat_id, text=msg, reply_markup=get_main_menu_keyboard())
+                    except Exception:
+                        pass
         elif update.message:
-            await update.message.reply_text(msg, reply_markup=get_main_menu_keyboard())
+            try:
+                await update.message.reply_text(msg, reply_markup=get_main_menu_keyboard())
+            except Exception:
+                pass
 
 def main():
     token = os.getenv("TELEGRAM_TOKEN")
@@ -49,7 +62,15 @@ def main():
 
     logger.info("🤖 Inicializando Bot Rubi Financial (UI Cliente de Apresentação)...")
 
-    app = ApplicationBuilder().token(token).build()
+    # Requisição HTTPX resiliente com pool de conexões otimizado
+    custom_request = HTTPXRequest(
+        connect_timeout=15.0,
+        read_timeout=20.0,
+        write_timeout=15.0,
+        pool_timeout=15.0
+    )
+
+    app = ApplicationBuilder().token(token).request(custom_request).build()
 
     # 1. Registrar ConversationHandlers de fluxos principais
     app.add_handler(get_auth_conversation_handler())
@@ -71,7 +92,7 @@ def main():
     app.add_error_handler(global_error_handler)
 
     logger.info("🚀 Bot Rubi rodando em modo Long Polling! Pressione Ctrl+C para encerrar.")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, bootstrap_retries=10)
 
 if __name__ == "__main__":
     main()
