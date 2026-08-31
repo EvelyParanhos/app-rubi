@@ -14,15 +14,10 @@ class RubiApiClient:
         self.phone_number = phone_number
         self.pin = pin
 
-    def register(self, name, phone_number, pin):
-        payload = {
-            "name": name,
-            "phone_number": phone_number,
-            "pin": pin
-        }
-        return self._request("POST", "/users/register", payload, require_auth=False)
+    def set_token(self, token: str):
+        self.token = token
 
-    def login(self, phone_number, pin):
+    def login(self, phone_number: str, pin: str) -> str:
         payload = {
             "phone_number": phone_number,
             "pin": pin
@@ -33,137 +28,71 @@ class RubiApiClient:
             self.phone_number = phone_number
             self.pin = pin
             return self.token
-        return None
+        raise RuntimeError("Resposta de login inválida.")
 
-    def ensure_login(self, phone_number, pin, name=None):
-        if not phone_number or not pin:
-            raise ValueError("Telefone e PIN são obrigatórios para autenticação.")
+    def register(self, name: str, phone_number: str, pin: str) -> dict:
+        payload = {
+            "name": name,
+            "phone_number": phone_number,
+            "pin": pin
+        }
+        return self._request("POST", "/users/register", payload, require_auth=False)
 
-        try:
-            tok = self.login(phone_number, pin)
-            if tok:
-                return tok
-        except Exception as e:
-            logger.warning(f"[LOG AUTENTICAÇÃO] Login inicial falhou para {phone_number} ({e}). Tentando registrar nova conta...")
+    def link_telegram(self, chat_id: str) -> dict:
+        payload = {"telegram_chat_id": str(chat_id)}
+        return self._request("POST", "/users/telegram-link", payload)
 
-        try:
-            reg_res = self.register(name or "Usuário", phone_number, pin)
-            if isinstance(reg_res, dict) and "token" in reg_res:
-                self.token = reg_res["token"]
-                self.phone_number = phone_number
-                self.pin = pin
-                return self.token
-            return self.login(phone_number, pin)
-        except Exception:
-            try:
-                return self.login(phone_number, pin)
-            except Exception as final_err:
-                logger.error(f"[LOG DIAGNÓSTICO] Falha definitiva no login/registro para {phone_number}: {final_err}")
-                raise final_err
+    def get_accounts(self) -> list:
+        res = self._request("GET", "/accounts")
+        return res if isinstance(res, list) else []
 
-    def get(self, endpoint, params=None):
-        return self._request("GET", endpoint, params=params)
+    def create_account(self, name: str, acc_type: str = "CHECKING", is_joint: bool = False, initial_balance: float = 0.0) -> dict:
+        payload = {
+            "name": name,
+            "type": acc_type,
+            "is_joint": is_joint,
+            "initial_balance": initial_balance
+        }
+        return self._request("POST", "/accounts", payload)
 
-    def post(self, endpoint, payload=None):
-        return self._request("POST", endpoint, payload=payload)
+    def get_credit_cards(self) -> list:
+        res = self._request("GET", "/credit-cards")
+        return res if isinstance(res, list) else []
 
-    def _request(self, method, endpoint, payload=None, params=None, require_auth=True, is_retry=False):
-        url = f"{self.base_url}{endpoint}"
-
-        if require_auth and not self.token:
-            if self.phone_number and self.pin:
-                logger.info("[LOG RE-AUTENTICANDO] Token ausente. Efetuando login...")
-                self.ensure_login(self.phone_number, self.pin)
-            else:
-                raise RuntimeError("HTTP_401: Usuário não autenticado. Por favor, informe o celular e PIN.")
-
-        headers = {}
-        if require_auth and self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-
-        logger.info(f"[LOG REQUISIÇÃO] {method} {url} | Params: {params} | Payload: {payload}")
-
-        try:
-            if method.upper() == "GET":
-                response = requests.get(url, params=params, headers=headers, timeout=10)
-            else:
-                response = requests.post(url, json=payload if payload else {}, headers=headers, timeout=10)
-
-            logger.info(f"[LOG RESPOSTA] {method} {url} ➔ Status: {response.status_code}")
-
-            if response.status_code in (401, 403) and require_auth and not is_retry:
-                logger.warning(f"[LOG RENOVAÇÃO TOKEN] Status {response.status_code} recebido. Renovando token...")
-                if self.phone_number and self.pin:
-                    self.ensure_login(self.phone_number, self.pin)
-                    return self._request(method, endpoint, payload=payload, params=params, require_auth=True, is_retry=True)
-
-            if response.status_code in (200, 201):
-                try:
-                    return response.json()
-                except ValueError:
-                    return {"success": True}
-            else:
-                error_detail = response.text
-                logger.error(f"[LOG ERRO BACKEND] {method} {url} | Status: {response.status_code} | Detalhes: {error_detail}")
-                raise RuntimeError(f"HTTP_{response.status_code}: {error_detail}")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"[LOG ERRO CONEXÃO] {method} {url} | Exceção: {e}")
-            raise RuntimeError(f"Erro de conexão com o servidor Rubi: {e}")
-
-    # Auxiliares de Negócio
-    def get_accounts(self):
-        try:
-            res = self.get("/accounts")
-            return res if isinstance(res, list) else []
-        except Exception as e:
-            logger.error(f"[LOG ERRO] Falha ao buscar contas: {e}")
-            return []
-
-    def get_credit_cards(self):
-        try:
-            res = self.get("/credit-cards")
-            return res if isinstance(res, list) else []
-        except Exception as e:
-            logger.error(f"[LOG ERRO] Falha ao buscar cartões: {e}")
-            return []
-
-    def get_active_partnership(self):
-        try:
-            return self.get("/partnerships/active")
-        except Exception as e:
-            logger.warning(f"[LOG AVISO] Falha ao verificar parceria ativa: {e}")
-            return {"has_active_partnership": False}
-
-    def get_recurring_expenses(self):
-        try:
-            res = self.get("/recurring-transactions")
-            return res if isinstance(res, list) else []
-        except Exception as e:
-            logger.error(f"[LOG ERRO] Falha ao buscar transações recorrentes: {e}")
-            return []
-
-    def create_recurring_expense(self, account_id, description, amount, exp_type, due_day, category="UNCATEGORIZED"):
+    def create_credit_card(self, account_id: str, name: str, credit_limit: float, closing_day: int, due_day: int) -> dict:
         payload = {
             "account_id": account_id,
-            "description": description,
-            "amount": amount,
-            "type": exp_type,
-            "due_day": due_day,
-            "category": category
+            "name": name,
+            "credit_limit": credit_limit,
+            "closing_day": closing_day,
+            "due_day": due_day
         }
-        return self.post("/recurring-transactions", payload)
+        return self._request("POST", "/credit-cards", payload)
 
-    def create_transaction(self, account_id, amount, trans_type, description=None, category="UNCATEGORIZED"):
+    def get_card_invoices(self, card_id: str) -> list:
+        res = self._request("GET", f"/credit-cards/{card_id}/invoices")
+        return res if isinstance(res, list) else []
+
+    def pay_invoice(self, invoice_id: str, source_account_id: str, amount: float) -> dict:
+        payload = {
+            "source_account_id": source_account_id,
+            "amount": amount
+        }
+        return self._request("POST", f"/invoices/{invoice_id}/pay", payload)
+
+    def create_transaction(self, account_id: str, amount: float, trans_type: str, description: str = None, category: str = "UNCATEGORIZED", reference_date: str = None) -> dict:
         payload = {
             "account_id": account_id,
             "amount": amount,
             "type": trans_type,
-            "description": description,
+            "description": description or ("Crédito" if trans_type == "CREDIT" else "Débito"),
             "category": category
         }
-        return self.post("/transactions", payload)
+        if reference_date:
+            payload["reference_date"] = reference_date
+        return self._request("POST", "/transactions", payload)
 
-    def get_transactions(self, month=None, account_id=None, category=None):
+    def get_transactions(self, month: str = None, account_id: str = None, category: str = None) -> list:
         params = {}
         if month:
             params["month"] = month
@@ -171,18 +100,72 @@ class RubiApiClient:
             params["account_id"] = account_id
         if category:
             params["category"] = category
-        try:
-            res = self.get("/transactions", params=params)
-            return res if isinstance(res, list) else []
-        except Exception as e:
-            logger.error(f"[LOG ERRO] Falha ao buscar extrato: {e}")
-            return []
+        res = self._request("GET", "/transactions", params=params)
+        return res if isinstance(res, list) else []
 
-    def pay_settlement(self, month, source_account_id, amount):
+    def get_recurring_transactions(self) -> list:
+        res = self._request("GET", "/recurring-transactions")
+        return res if isinstance(res, list) else []
+
+    def create_recurring_transaction(self, account_id: str, description: str, amount: float, rec_type: str, due_day: int, category: str = "UNCATEGORIZED") -> dict:
+        payload = {
+            "account_id": account_id,
+            "description": description,
+            "amount": amount,
+            "type": rec_type,
+            "due_day": due_day,
+            "category": category
+        }
+        return self._request("POST", "/recurring-transactions", payload)
+
+    def get_active_partnership(self) -> dict:
+        try:
+            return self._request("GET", "/partnerships/active")
+        except Exception:
+            return {"has_active_partnership": False}
+
+    def get_net_balance(self, month: str = None) -> dict:
+        params = {}
+        if month:
+            params["month"] = month
+        return self._request("GET", "/settlements/net-balance", params=params)
+
+    def pay_settlement(self, month: str, source_account_id: str, amount: float) -> dict:
         payload = {
             "month": month,
             "source_account_id": source_account_id,
             "amount": amount
         }
-        return self.post("/settlements/pay", payload)
+        return self._request("POST", "/settlements/pay", payload)
 
+    def _request(self, method: str, endpoint: str, payload: dict = None, params: dict = None, require_auth: bool = True) -> dict | list:
+        url = f"{self.base_url}{endpoint}"
+        headers = {"Content-Type": "application/json"}
+
+        if require_auth:
+            if not self.token:
+                raise RuntimeError("Sessão expirada ou não autenticada. Utilize /login para entrar.")
+            headers["Authorization"] = f"Bearer {self.token}"
+
+        logger.info(f"[API {method}] {url} | Params: {params} | Body: {payload}")
+
+        try:
+            if method.upper() == "GET":
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+            else:
+                response = requests.post(url, json=payload if payload else {}, headers=headers, timeout=10)
+
+            if response.status_code in (200, 201):
+                try:
+                    return response.json()
+                except ValueError:
+                    return {"success": True}
+            elif response.status_code == 204:
+                return {"success": True}
+            else:
+                err_text = response.text
+                logger.error(f"[API ERRO {response.status_code}] {url} -> {err_text}")
+                raise RuntimeError(f"Erro na requisição ({response.status_code}): {err_text}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[API CONEXÃO] Falha ao conectar em {url}: {e}")
+            raise RuntimeError("Não foi possível conectar ao servidor Rubi. Verifique se o backend está ativo.")
