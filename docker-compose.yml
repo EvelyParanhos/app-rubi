@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: rubi-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: rubi_db
+      POSTGRES_USER: rubi_admin
+      POSTGRES_PASSWORD: rubi_password_local
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rubi_admin -d rubi_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app-rubi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rubi-app
+    ports:
+      - '8080:8080'
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rubi_db
+      SPRING_DATASOURCE_USERNAME: rubi_admin
+      SPRING_DATASOURCE_PASSWORD: rubi_password_local
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
