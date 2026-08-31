@@ -1,0 +1,1016 @@
+openapi: 3.0.3
+info:
+  title: Rubi API
+  version: 1.0.0
+paths:
+  /api/health:
+    get:
+      summary: Health check endpoint
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /api/users/register:
+    post:
+      tags:
+        - users
+      summary: Register a new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+        '409':
+          description: Conflict
+  /api/auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login user and return JWT token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+  /api/users/telegram-link:
+    post:
+      tags:
+        - users
+      summary: Link Telegram account
+      operationId: linkTelegram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLinkRequest'
+      responses:
+        '200':
+          description: OK
+  /api/partnerships/active:
+    get:
+      tags:
+        - partnerships
+      summary: Get active partnership details for current user
+      operationId: getActivePartnership
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnershipActiveResponse'
+  /api/partnerships/invite:
+    post:
+      tags:
+        - partnerships
+      summary: Invite partner
+      operationId: invitePartnership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnershipInviteRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnershipInviteResponse'
+  /api/partnerships/{id}:
+    patch:
+      tags:
+        - partnerships
+      summary: Accept or terminate partnership (RESTful PATCH)
+      operationId: updatePartnershipStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnershipStatusUpdateRequest'
+      responses:
+        '200':
+          description: OK
+  /api/accounts:
+    get:
+      tags:
+        - accounts
+      summary: Get list of accounts for current user
+      operationId: getAccounts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountResponse'
+    post:
+      tags:
+        - accounts
+      summary: Create a new account
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountCreateResponse'
+  /api/accounts/{id}:
+    put:
+      tags:
+        - accounts
+      summary: Update account (CRUD)
+      operationId: updateAccount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreateRequest'
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags:
+        - accounts
+      summary: Soft delete account
+      operationId: deleteAccount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content
+  /api/transactions:
+    get:
+      tags:
+        - transactions
+      summary: Get list of transactions (extrato) for current user
+      operationId: getTransactions
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: account_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/CategoryEnum'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionResponse'
+    post:
+      tags:
+        - transactions
+      summary: Record a new transaction (Expense or Income)
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+  /api/transactions/transfer:
+    post:
+      tags:
+        - transactions
+      summary: Transfer funds between accounts
+      operationId: transferFunds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '201':
+          description: Created
+  /api/transactions/{id}:
+    delete:
+      tags:
+        - transactions
+      summary: Delete or reverse transaction
+      operationId: deleteTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content
+  /api/transactions/{id}/splits:
+    post:
+      tags:
+        - transactions
+      summary: Split a transaction with a debtor
+      operationId: splitTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionSplitRequest'
+      responses:
+        '201':
+          description: Created
+  /api/credit-cards:
+    get:
+      tags:
+        - credit-cards
+      summary: Get list of credit cards for current user
+      operationId: getCreditCards
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreditCardResponse'
+    post:
+      tags:
+        - credit-cards
+      summary: Create a new credit card
+      operationId: createCreditCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCardCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCardCreateResponse'
+  /api/credit-cards/{id}/purchases:
+    post:
+      tags:
+        - credit-cards
+      summary: Record a credit card purchase
+      operationId: recordCreditCardPurchase
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCardPurchaseRequest'
+      responses:
+        '201':
+          description: Created
+  /api/credit-cards/{id}/invoices:
+    get:
+      tags:
+        - credit-cards
+      summary: Get invoices for credit card
+      operationId: getCreditCardInvoices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceResponse'
+  /api/invoices/{id}:
+    get:
+      tags:
+        - invoices
+      summary: Get detailed invoice by id
+      operationId: getInvoiceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceResponse'
+  /api/invoices/{id}/pay:
+    post:
+      tags:
+        - invoices
+      summary: Pay a credit card invoice
+      operationId: payInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoicePaymentRequest'
+      responses:
+        '200':
+          description: OK
+  /api/settlements/net-balance:
+    get:
+      tags:
+        - settlements
+      summary: Get net balance settlement for a given month
+      operationId: getNetBalance
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetBalanceResponse'
+  /api/settlements/pay:
+    post:
+      tags:
+        - settlements
+      summary: Pay/Settle net balance for a given month
+      operationId: payNetBalance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettlementPayRequest'
+      responses:
+        '200':
+          description: OK
+  /api/recurring-transactions:
+    get:
+      tags:
+        - recurring-transactions
+      summary: Get list of recurring transactions (Salary/Incomes & Fixed Expenses) for current user
+      operationId: getRecurringTransactions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurringTransactionResponse'
+    post:
+      tags:
+        - recurring-transactions
+      summary: Create a recurring transaction (INCOME or EXPENSE)
+      operationId: createRecurringTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringTransactionCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTransactionResponse'
+  /api/recurring-transactions/{id}:
+    delete:
+      tags:
+        - recurring-transactions
+      summary: Delete/deactivate recurring transaction
+      operationId: deleteRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content
+  /api/webhook/telegram:
+    post:
+      tags:
+        - webhook
+      summary: Telegram Webhook Update Endpoint
+      operationId: handleTelegramWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    CategoryEnum:
+      type: string
+      enum:
+        - PETS
+        - BARS_AND_RESTAURANTS
+        - DELIVERY
+        - SHOPPING
+        - HOUSING
+        - DONATIONS
+        - EDUCATION
+        - ENTERTAINMENT
+        - TAXES_AND_FEES
+        - INVESTMENTS
+        - SUPERMARKET
+        - UNCATEGORIZED
+        - PAYMENTS
+        - SERVICE_PROVIDERS
+        - RECEIPTS
+        - HEALTH
+        - DIGITAL_SERVICES
+        - TRANSFERS
+        - TRANSPORT
+        - TRAVEL
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+    UserRegistrationRequest:
+      type: object
+      required:
+        - name
+        - phone_number
+        - pin
+      properties:
+        name:
+          type: string
+        phone_number:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+        pin:
+          type: string
+    UserLoginRequest:
+      type: object
+      required:
+        - phone_number
+        - pin
+      properties:
+        phone_number:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+        pin:
+          type: string
+    UserLoginResponse:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+    UserRegistrationResponse:
+      type: object
+      required:
+        - id
+        - token
+      properties:
+        id:
+          type: string
+        token:
+          type: string
+        name:
+          type: string
+        phone_number:
+          type: string
+    TelegramLinkRequest:
+      type: object
+      required:
+        - telegram_chat_id
+      properties:
+        telegram_chat_id:
+          type: string
+    PartnershipInviteRequest:
+      type: object
+      required:
+        - target_phone_number
+      properties:
+        target_phone_number:
+          type: string
+    PartnershipInviteResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - PENDING
+            - ACTIVE
+            - TERMINATED
+    PartnershipStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - TERMINATED
+    PartnershipActiveResponse:
+      type: object
+      required:
+        - has_active_partnership
+      properties:
+        has_active_partnership:
+          type: boolean
+        partner_id:
+          type: string
+          format: uuid
+        partner_name:
+          type: string
+    AccountCreateRequest:
+      type: object
+      required:
+        - name
+        - type
+        - is_joint
+      properties:
+        owner_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - CHECKING
+            - SAVINGS
+            - LIABILITY
+        is_joint:
+          type: boolean
+        initial_balance:
+          type: number
+          format: double
+    AccountCreateResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+    AccountResponse:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - is_joint
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        is_joint:
+          type: boolean
+        balance:
+          type: number
+          format: double
+    TransferRequest:
+      type: object
+      required:
+        - source_account_id
+        - target_account_id
+        - amount
+        - description
+      properties:
+        source_account_id:
+          type: string
+          format: uuid
+        target_account_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        description:
+          type: string
+    CreditCardCreateRequest:
+      type: object
+      required:
+        - account_id
+        - name
+        - credit_limit
+        - closing_day
+        - due_day
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        credit_limit:
+          type: number
+          format: double
+        closing_day:
+          type: integer
+        due_day:
+          type: integer
+    CreditCardCreateResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+    CreditCardResponse:
+      type: object
+      required:
+        - id
+        - name
+        - credit_limit
+        - closing_day
+        - due_day
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        credit_limit:
+          type: number
+          format: double
+        used_limit:
+          type: number
+          format: double
+        available_limit:
+          type: number
+          format: double
+        current_invoice_amount:
+          type: number
+          format: double
+        closing_day:
+          type: integer
+        due_day:
+          type: integer
+    CreditCardPurchaseRequest:
+      type: object
+      required:
+        - amount
+        - description
+        - installments
+        - purchase_date
+      properties:
+        amount:
+          type: number
+          format: double
+        description:
+          type: string
+        installments:
+          type: integer
+          minimum: 1
+        purchase_date:
+          type: string
+          format: date-time
+    InvoicePaymentRequest:
+      type: object
+      required:
+        - source_account_id
+        - amount
+      properties:
+        source_account_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+    TransactionSplitRequest:
+      type: object
+      required:
+        - debtor_id
+        - amount
+        - reference_month
+      properties:
+        debtor_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        reference_month:
+          type: string
+    NetBalanceResponse:
+      type: object
+      required:
+        - creditor_id
+        - debtor_id
+        - net_amount
+      properties:
+        creditor_id:
+          type: string
+          format: uuid
+        creditor_name:
+          type: string
+        debtor_id:
+          type: string
+          format: uuid
+        debtor_name:
+          type: string
+        net_amount:
+          type: number
+          format: double
+    RecurringTransactionCreateRequest:
+      type: object
+      required:
+        - account_id
+        - description
+        - amount
+        - type
+        - due_day
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        amount:
+          type: number
+          format: double
+        type:
+          type: string
+          enum:
+            - INCOME
+            - EXPENSE
+        due_day:
+          type: integer
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+    RecurringTransactionResponse:
+      type: object
+      required:
+        - id
+        - description
+        - amount
+        - type
+        - due_day
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        amount:
+          type: number
+          format: double
+        type:
+          type: string
+        due_day:
+          type: integer
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+    TransactionCreateRequest:
+      type: object
+      required:
+        - account_id
+        - amount
+        - type
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        type:
+          type: string
+          enum:
+            - CREDIT
+            - DEBIT
+        description:
+          type: string
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        reference_date:
+          type: string
+          format: date-time
+    TransactionResponse:
+      type: object
+      required:
+        - id
+        - account_id
+        - amount
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        account_name:
+          type: string
+        amount:
+          type: number
+          format: double
+        type:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        reference_date:
+          type: string
+          format: date-time
+    InvoiceItemResponse:
+      type: object
+      required:
+        - id
+        - description
+        - amount
+        - purchase_date
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        amount:
+          type: number
+          format: double
+        purchase_date:
+          type: string
+          format: date-time
+        installment_number:
+          type: integer
+        total_installments:
+          type: integer
+    InvoiceResponse:
+      type: object
+      required:
+        - id
+        - credit_card_id
+        - reference_month
+        - due_date
+        - total_amount
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        credit_card_id:
+          type: string
+          format: uuid
+        credit_card_name:
+          type: string
+        reference_month:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        total_amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum:
+            - OPEN
+            - CLOSED
+            - PAID
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceItemResponse'
+    SettlementPayRequest:
+      type: object
+      required:
+        - month
+        - source_account_id
+        - amount
+      properties:
+        month:
+          type: string
+        source_account_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+
