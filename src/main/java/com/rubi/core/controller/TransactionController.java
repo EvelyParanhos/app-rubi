@@ -111,6 +111,31 @@ public class TransactionController implements TransactionsApi {
 
     @Override
     @Transactional
+    public ResponseEntity<TransactionResponse> updateTransaction(UUID id, TransactionCreateRequest request) {
+        UUID currentUserId = getCurrentUserId();
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+
+        if (!transaction.getAccount().getOwner().getId().equals(currentUserId)) {
+            throw new SecurityException("Forbidden: Transaction does not belong to current user");
+        }
+
+        if (request.getAmount() != null) {
+            transaction.setAmount(BigDecimal.valueOf(request.getAmount()));
+        }
+        if (request.getDescription() != null) {
+            transaction.setDescription(request.getDescription());
+        }
+        if (request.getCategory() != null) {
+            transaction.setCategory(Category.valueOf(request.getCategory().name()));
+        }
+
+        Transaction updated = transactionRepository.save(transaction);
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    @Override
+    @Transactional
     public ResponseEntity<Void> deleteTransaction(UUID id) {
         UUID currentUserId = getCurrentUserId();
         Transaction transaction = transactionRepository.findById(id)

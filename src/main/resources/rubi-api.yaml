@@ -259,6 +259,31 @@ paths:
         '201':
           description: Created
   /api/transactions/{id}:
+    put:
+      tags:
+        - transactions
+      summary: Update transaction
+      operationId: updateTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
     delete:
       tags:
         - transactions
