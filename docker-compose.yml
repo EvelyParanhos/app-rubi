@@ -31,5 +31,15 @@ services:
       postgres:
         condition: service_healthy
 
+  rubi-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: rubi-frontend
+    ports:
+      - '3000:80'
+    depends_on:
+      - app-rubi
+
 volumes:
   postgres_data:
