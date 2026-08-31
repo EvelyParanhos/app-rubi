@@ -13,8 +13,8 @@ from handlers.auth import get_main_menu_keyboard
 
 logger = logging.getLogger(__name__)
 
-# Estados do Registro de Transação
-TRANS_AMOUNT, TRANS_ACCOUNT, TRANS_CATEGORY, TRANS_SPLIT, TRANS_CONFIRM = range(5)
+# Estados do Registro e Edição de Transação
+TRANS_AMOUNT, TRANS_ACCOUNT, TRANS_CATEGORY, TRANS_SPLIT, TRANS_CONFIRM, EDIT_TX_VAL, EDIT_TX_CAT = range(7)
 
 CATEGORIES = {
     "SUPERMARKET": "🛒 Mercado",
@@ -31,16 +31,16 @@ CATEGORIES = {
     "UNCATEGORIZED": "📦 Não Categorizado"
 }
 
-def get_category_keyboard():
+def get_category_keyboard(prefix="cat_"):
     keyboard = []
     items = list(CATEGORIES.items())
     for i in range(0, len(items), 2):
         row = []
         c1, l1 = items[i]
-        row.append(InlineKeyboardButton(l1, callback_data=f"cat_{c1}"))
+        row.append(InlineKeyboardButton(l1, callback_data=f"{prefix}{c1}"))
         if i + 1 < len(items):
             c2, l2 = items[i+1]
-            row.append(InlineKeyboardButton(l2, callback_data=f"cat_{c2}"))
+            row.append(InlineKeyboardButton(l2, callback_data=f"{prefix}{c2}"))
         keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
@@ -57,7 +57,10 @@ async def start_receita(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def prompt_amount(update, context, title):
     msg_text = f"{title}\n\nDigite o **valor** em R$ (ex: `45.50` ou `45,50`):"
     if update.callback_query:
-        await update.callback_query.answer()
+        try:
+            await update.callback_query.answer()
+        except Exception:
+            pass
         await update.callback_query.edit_message_text(msg_text, parse_mode="Markdown")
     else:
         await update.message.reply_text(msg_text, parse_mode="Markdown")
@@ -77,7 +80,6 @@ async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Valor inválido! Digite um valor numérico positivo (ex: `50.00`):")
         return TRANS_AMOUNT
 
-    # Buscar contas para botões inline dinâmicos
     accounts = client.get_accounts()
     if not accounts:
         await update.message.reply_text("❌ Nenhuma conta cadastrada! Crie uma conta no menu principal antes de registrar despesas.")
@@ -99,7 +101,10 @@ async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def account_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
     acc_id = query.data.replace("acc_", "")
     context.user_data["trans_account_id"] = acc_id
@@ -112,7 +117,10 @@ async def account_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def category_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
     cat_code = query.data.replace("cat_", "")
     context.user_data["trans_category"] = cat_code
@@ -133,7 +141,10 @@ async def category_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def split_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
     choice = query.data
     amount = context.user_data.get("trans_amount", 0.0)
@@ -195,7 +206,10 @@ async def show_confirmation(target, context, edit=False):
 
 async def confirm_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
     if query.data == "confirm_trans_no":
         await query.edit_message_text("❌ Transação cancelada.", reply_markup=get_main_menu_keyboard())
@@ -231,13 +245,138 @@ async def confirm_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
+# --- EXCLUSÃO E EDIÇÃO DE TRANSAÇÕES ---
+
+@require_auth
+async def handle_delete_tx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        await query.answer()
+    except Exception:
+        pass
+
+    tx_id = query.data.replace("delete_tx_", "")
+    context.user_data["delete_tx_id"] = tx_id
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("⚠️ Sim, Excluir", callback_data=f"confirm_del_{tx_id}"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cmd_main_menu")
+        ]
+    ])
+
+    await query.edit_message_text(
+        f"⚠️ **Confirmação de Exclusão**\n\n"
+        f"Tem certeza de que deseja **excluir permanentemente** a transação abaixo?\n`{tx_id}`",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+@require_auth
+async def execute_delete_tx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        await query.answer()
+    except Exception:
+        pass
+
+    tx_id = query.data.replace("confirm_del_", "")
+    chat_id = update.effective_chat.id
+    client = get_client(chat_id)
+
+    try:
+        client.delete_transaction(tx_id)
+        await query.edit_message_text("✅ **Transação excluída com sucesso!**", reply_markup=get_main_menu_keyboard(), parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"[EXCLUSÃO TRANSAÇÃO ERRO] {e}")
+        await query.edit_message_text(f"❌ Erro ao excluir transação: {e}", reply_markup=get_main_menu_keyboard())
+
+@require_auth
+async def start_edit_tx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        await query.answer()
+    except Exception:
+        pass
+
+    tx_id = query.data.replace("edit_tx_", "")
+    context.user_data["edit_tx_id"] = tx_id
+
+    await query.edit_message_text(
+        f"✏️ **Edição de Transação** (`{tx_id}`)\n\n"
+        "Digite o **novo valor** em R$ (ex: `75.00`):",
+        parse_mode="Markdown"
+    )
+    return EDIT_TX_VAL
+
+async def edit_tx_val_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    raw_val = update.message.text.strip().replace(",", ".")
+    try:
+        val = float(raw_val)
+        if val <= 0:
+            raise ValueError()
+        context.user_data["edit_tx_amount"] = val
+    except ValueError:
+        await update.message.reply_text("❌ Valor inválido! Digite um valor numérico positivo:")
+        return EDIT_TX_VAL
+
+    await update.message.reply_text(
+        f"Novo valor: **R$ {val:.2f}**\n\nSelecione a nova **categoria**:",
+        reply_markup=get_category_keyboard(prefix="editcat_"),
+        parse_mode="Markdown"
+    )
+    return EDIT_TX_CAT
+
+async def edit_tx_cat_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        await query.answer()
+    except Exception:
+        pass
+
+    cat_code = query.data.replace("editcat_", "")
+    tx_id = context.user_data.get("edit_tx_id")
+    new_amount = context.user_data.get("edit_tx_amount")
+
+    chat_id = update.effective_chat.id
+    client = get_client(chat_id)
+
+    try:
+        # Buscar contas do usuário para obter o account_id da transação
+        accounts = client.get_accounts()
+        acc_id = accounts[0]["id"] if accounts else None
+
+        client.update_transaction(
+            transaction_id=tx_id,
+            account_id=acc_id,
+            amount=new_amount,
+            trans_type="DEBIT",
+            description="Transação Atualizada via Telegram",
+            category=cat_code
+        )
+
+        cat_name = CATEGORIES.get(cat_code, cat_code)
+        await query.edit_message_text(
+            f"✅ **Transação atualizada com sucesso!**\n\n"
+            f"• **Novo Valor**: R$ {new_amount:.2f}\n"
+            f"• **Nova Categoria**: {cat_name}",
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"[EDIÇÃO TRANSAÇÃO ERRO] {e}")
+        await query.edit_message_text(f"❌ Falha ao atualizar transação: {e}", reply_markup=get_main_menu_keyboard())
+
+    return ConversationHandler.END
+
 def get_transaction_conversation_handler():
     return ConversationHandler(
         entry_points=[
             CommandHandler("gasto", start_gasto),
             CommandHandler("receita", start_receita),
             CallbackQueryHandler(start_gasto, pattern="^cmd_gasto$"),
-            CallbackQueryHandler(start_receita, pattern="^cmd_receita$")
+            CallbackQueryHandler(start_receita, pattern="^cmd_receita$"),
+            CallbackQueryHandler(start_edit_tx, pattern="^edit_tx_")
         ],
         states={
             TRANS_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, amount_received)],
@@ -248,6 +387,8 @@ def get_transaction_conversation_handler():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, custom_split_received)
             ],
             TRANS_CONFIRM: [CallbackQueryHandler(confirm_decision, pattern="^confirm_trans_")],
+            EDIT_TX_VAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_tx_val_received)],
+            EDIT_TX_CAT: [CallbackQueryHandler(edit_tx_cat_selected, pattern="^editcat_")],
         },
         fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)]
     )

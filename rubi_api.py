@@ -112,6 +112,19 @@ class RubiApiClient:
             payload["reference_date"] = reference_date
         return self._request("POST", "/transactions", payload)
 
+    def update_transaction(self, transaction_id: str, account_id: str, amount: float = None, trans_type: str = "DEBIT", description: str = None, category: str = None) -> dict:
+        payload = {
+            "account_id": account_id,
+            "amount": amount,
+            "type": trans_type,
+            "description": description,
+            "category": category
+        }
+        return self._request("PUT", f"/transactions/{transaction_id}", payload)
+
+    def delete_transaction(self, transaction_id: str) -> dict:
+        return self._request("DELETE", f"/transactions/{transaction_id}")
+
     def get_transactions(self, month: str = None, account_id: str = None, category: str = None) -> list:
         params = {}
         if month:
@@ -170,8 +183,13 @@ class RubiApiClient:
         logger.info(f"[API {method}] {url} | Params: {params} | Body: {payload}")
 
         try:
-            if method.upper() == "GET":
+            m = method.upper()
+            if m == "GET":
                 response = requests.get(url, params=params, headers=headers, timeout=10)
+            elif m == "PUT":
+                response = requests.put(url, json=payload if payload else {}, headers=headers, timeout=10)
+            elif m == "DELETE":
+                response = requests.delete(url, headers=headers, timeout=10)
             else:
                 response = requests.post(url, json=payload if payload else {}, headers=headers, timeout=10)
 
