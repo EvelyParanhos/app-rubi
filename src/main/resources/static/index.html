@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rubi - Protótipo de Baixa Fidelidade</title>
+  <link rel="stylesheet" href="/css/style.css?v=1.0.3">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div>
+        <h1>💎 Rubi - Protótipo de Baixa Fidelidade</h1>
+        <small>Interface de Teste & Prototipação Rápida da API Rubi (v1.0.3)</small>
+      </div>
+      <div class="user-status">
+        <span id="authStatusBadge" class="badge logged-out">Desconectado</span>
+        <span id="userInfo">Nenhum usuário ativo</span>
+        <button id="logoutBtn" onclick="logout()" style="display: none;" class="btn-sm btn-danger">Sair</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+      <button class="tab-btn active" onclick="switchTab('auth')">🔑 Autenticação</button>
+      <button class="tab-btn" onclick="switchTab('accounts')">💳 Contas</button>
+      <button class="tab-btn" onclick="switchTab('transactions')">💸 Transações / Extrato</button>
+      <button class="tab-btn" onclick="switchTab('cards')">💳 Cartões & Faturas</button>
+      <button class="tab-btn" onclick="switchTab('partnership')">🤝 Parceria</button>
+      <button class="tab-btn" onclick="switchTab('settlements')">⚖️ Acertos (Settlements)</button>
+      <button class="tab-btn" onclick="switchTab('recurring')">🔄 Recorrentes</button>
+    </nav>
+
+    <!-- Main Content Panels -->
+    <div class="tab-content">
+      
+      <!-- ABA 1: AUTENTICAÇÃO -->
+      <div id="tab-auth" class="tab-pane active">
+        <h2>Autenticação & Registro</h2>
+        <div class="section-grid mt-15">
+          <!-- Login -->
+          <div class="card">
+            <h3>Login de Usuário</h3>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+              <div class="form-group">
+                <label for="loginPhone">Telefone (Formato E.164 Ex: +5511999999999)</label>
+                <input type="text" id="loginPhone" placeholder="+5511999999999" required>
+              </div>
+              <div class="form-group">
+                <label for="loginPin">PIN / Senha</label>
+                <input type="password" id="loginPin" placeholder="Sua senha/PIN" required>
+              </div>
+              <button type="submit" class="btn-success">Entrar (Login)</button>
+            </form>
+          </div>
+
+          <!-- Registro -->
+          <div class="card">
+            <h3>Registrar Novo Usuário</h3>
+            <form id="registerForm" onsubmit="handleRegister(event)">
+              <div class="form-group">
+                <label for="regName">Nome Completo</label>
+                <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
+              </div>
+              <div class="form-group">
+                <label for="regPhone">Telefone (Formato E.164 Ex: +5511988888888)</label>
+                <input type="text" id="regPhone" placeholder="+5511988888888" required>
+              </div>
+              <div class="form-group">
+                <label for="regPin">PIN / Senha</label>
+                <input type="password" id="regPin" placeholder="Escolha um PIN" required>
+              </div>
+              <button type="submit">Cadastrar Usuário</button>
+            </form>
+          </div>
+
+          <!-- Telegram Link -->
+          <div class="card">
+            <h3>Vincular Telegram</h3>
+            <div style="background: #eef6fc; border: 1px solid #b6d4fe; padding: 10px; margin-bottom: 10px; font-size: 0.8rem;">
+              <strong>ℹ️ Como descobrir seu ID do Telegram:</strong>
+              <ol style="margin-left: 15px; margin-top: 4px;">
+                <li>No Telegram, busque o bot <strong>@userinfobot</strong> ou <strong>@GetIDBot</strong>.</li>
+                <li>Envie <code>/start</code>.</li>
+                <li>Ele enviará seu número de <strong>ID</strong> (ex: <code>123456789</code>). Copie e cole abaixo.</li>
+              </ol>
+            </div>
+            <form id="telegramForm" onsubmit="handleTelegramLink(event)">
+              <div class="form-group">
+                <label for="telegramChatId">ID do Chat no Telegram</label>
+                <input type="text" id="telegramChatId" placeholder="Ex: 123456789" required>
+              </div>
+              <button type="submit">Vincular Telegram Chat</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: CONTAS BANCÁRIAS -->
+      <div id="tab-accounts" class="tab-pane">
+        <div class="flex-between">
+          <h2>Gerenciamento de Contas</h2>
+          <button onclick="loadAccounts()" class="btn-sm">🔄 Atualizar Lista</button>
+        </div>
+        
+        <div class="section-grid mt-15">
+          <!-- Criar / Editar Conta -->
+          <div class="card">
+            <h3 id="accountFormTitle">Nova Conta</h3>
+            <form id="accountForm" onsubmit="handleAccountSubmit(event)">
+              <input type="hidden" id="accountId">
+              <div class="form-group">
+                <label for="accName">Nome da Conta / Banco</label>
+                <input type="text" id="accName" placeholder="Ex: Nubank, Itaú Principal" required>
+              </div>
+              <div class="form-group">
+                <label for="accType">Tipo de Conta</label>
+                <select id="accType" required>
+                  <option value="CHECKING">Conta Corrente</option>
+                  <option value="SAVINGS">Conta Poupança</option>
+                  <option value="INVESTMENT">Investimento</option>
+                  <option value="CASH">Carteira / Dinheiro Físico</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="accBalance">Saldo Inicial (R$)</label>
+                <input type="number" step="0.01" id="accBalance" placeholder="0.00" value="0.00" required>
+              </div>
+              <div class="form-group">
+                <label for="accCurrency">Moeda</label>
+                <input type="text" id="accCurrency" value="BRL" required>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="accIsJoint"> Conta Conjunta (Compartilhada)?
+                </label>
+              </div>
+              <button type="submit" id="accSubmitBtn" class="btn-success">Salvar Conta</button>
+              <button type="button" onclick="resetAccountForm()" class="btn-sm" style="display:none;" id="accCancelBtn">Cancelar Edição</button>
+            </form>
+          </div>
+
+          <!-- Tabela de Contas -->
+          <div class="card" style="grid-column: span 2;">
+            <h3>Suas Contas</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Saldo</th>
+                  <th>Moeda</th>
+                  <th>Conjunta?</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="accountsTableBody">
+                <tr><td colspan="6">Carregando contas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 3: TRANSAÇÕES / EXTRATO -->
+      <div id="tab-transactions" class="tab-pane">
+        <h2>Transações & Extrato</h2>
+
+        <!-- Filtros -->
+        <div class="card mt-15 mb-10">
+          <h3>Filtros do Extrato</h3>
+          <div class="form-inline">
+            <div class="form-group">
+              <label for="filterMonth">Mês (YYYY-MM)</label>
+              <input type="month" id="filterMonth">
+            </div>
+            <div class="form-group">
+              <label for="filterAccount">Conta</label>
+              <select id="filterAccount">
+                <option value="">Todas as Contas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="filterCategory">Categoria</label>
+              <select id="filterCategory">
+                <option value="">Todas as Categorias</option>
+              </select>
+            </div>
+            <div>
+              <button onclick="loadTransactions()" class="btn-success">Filtrar Extrato</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-grid mt-15">
+          <!-- Nova Transação -->
+          <div class="card">
+            <h3 id="txFormTitle">Lançar Despesa / Receita</h3>
+            <form id="txForm" onsubmit="handleTransactionSubmit(event)">
+              <input type="hidden" id="txId">
+              <div class="form-group">
+                <label for="txType">Tipo de Transação</label>
+                <select id="txType" required>
+                  <option value="DEBIT">Despesa / Saída (Débito)</option>
+                  <option value="CREDIT">Receita / Entrada (Crédito)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="txAmount">Valor (R$)</label>
+                <input type="number" step="0.01" id="txAmount" placeholder="0.00" required>
+              </div>
+              <div class="form-group">
+                <label for="txDescription">Descrição</label>
+                <input type="text" id="txDescription" placeholder="Ex: Almoço, Salário" required>
+              </div>
+              <div class="form-group">
+                <label for="txAccount">Conta</label>
+                <select id="txAccount" required></select>
+              </div>
+              <div class="form-group">
+                <label for="txCategory">Categoria</label>
+                <select id="txCategory" required></select>
+              </div>
+              <div class="form-group">
+                <label for="txDate">Data e Hora</label>
+                <input type="datetime-local" id="txDate" required>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="txShared"> Dividir Despesa com Parceiro?
+                </label>
+              </div>
+              <div class="form-group" id="txSplitPercentageGroup" style="display:none;">
+                <label for="txSplitPercentage">% da Minha Parte (Ex: 50)</label>
+                <input type="number" id="txSplitPercentage" placeholder="50" value="50">
+              </div>
+              <button type="submit" id="txSubmitBtn" class="btn-success">Registrar Transação</button>
+            </form>
+          </div>
+
+          <!-- Transferência Entre Contas -->
+          <div class="card">
+            <h3>Transferência Entre Contas</h3>
+            <form id="transferForm" onsubmit="handleTransferSubmit(event)">
+              <div class="form-group">
+                <label for="trFromAccount">Conta de Origem</label>
+                <select id="trFromAccount" required></select>
+              </div>
+              <div class="form-group">
+                <label for="trToAccount">Conta de Destino</label>
+                <select id="trToAccount" required></select>
+              </div>
+              <div class="form-group">
+                <label for="trAmount">Valor (R$)</label>
+                <input type="number" step="0.01" id="trAmount" placeholder="0.00" required>
+              </div>
+              <div class="form-group">
+                <label for="trDescription">Descrição (Opcional)</label>
+                <input type="text" id="trDescription" placeholder="Ex: Transferência para Poupança">
+              </div>
+              <div class="form-group">
+                <label for="trDate">Data e Hora</label>
+                <input type="datetime-local" id="trDate" required>
+              </div>
+              <button type="submit">Realizar Transferência</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Tabela do Extrato -->
+        <div class="card mt-15">
+          <h3>Extrato de Transações</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Valor</th>
+                <th>Categoria</th>
+                <th>Conta</th>
+                <th>Compartilhada?</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTableBody">
+              <tr><td colspan="8">Selecione os filtros ou clique em "Filtrar Extrato".</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA 4: CARTÕES DE CRÉDITO & FATURAS -->
+      <div id="tab-cards" class="tab-pane">
+        <h2>Cartões de Crédito & Faturas</h2>
+        <div class="section-grid mt-15">
+          <!-- Criar Cartão -->
+          <div class="card">
+            <h3>Novo Cartão de Crédito</h3>
+            <form id="cardForm" onsubmit="handleCardSubmit(event)">
+              <div class="form-group">
+                <label for="cardAccount">Conta Vinculada ao Cartão</label>
+                <select id="cardAccount" required></select>
+              </div>
+              <div class="form-group">
+                <label for="cardName">Nome do Cartão</label>
+                <input type="text" id="cardName" placeholder="Ex: Nubank Black, Inter" required>
+              </div>
+              <div class="form-group">
+                <label for="cardClosingDay">Dia do Fechamento da Fatura (1-31)</label>
+                <input type="number" min="1" max="31" id="cardClosingDay" placeholder="10" required>
+              </div>
+              <div class="form-group">
+                <label for="cardDueDay">Dia do Vencimento da Fatura (1-31)</label>
+                <input type="number" min="1" max="31" id="cardDueDay" placeholder="20" required>
+              </div>
+              <div class="form-group">
+                <label for="cardLimit">Limite Total (R$)</label>
+                <input type="number" step="0.01" id="cardLimit" placeholder="5000.00" required>
+              </div>
+              <button type="submit" class="btn-success">Cadastrar Cartão</button>
+            </form>
+          </div>
+
+          <!-- Lançar Compra no Cartão -->
+          <div class="card">
+            <h3>Compra no Cartão de Crédito</h3>
+            <form id="cardPurchaseForm" onsubmit="handleCardPurchaseSubmit(event)">
+              <div class="form-group">
+                <label for="cpCard">Cartão</label>
+                <select id="cpCard" required></select>
+              </div>
+              <div class="form-group">
+                <label for="cpAmount">Valor Total (R$)</label>
+                <input type="number" step="0.01" id="cpAmount" placeholder="0.00" required>
+              </div>
+              <div class="form-group">
+                <label for="cpDescription">Descrição</label>
+                <input type="text" id="cpDescription" placeholder="Ex: Compra Eletrônicos" required>
+              </div>
+              <div class="form-group">
+                <label for="cpCategory">Categoria</label>
+                <select id="cpCategory" required></select>
+              </div>
+              <div class="form-group">
+                <label for="cpInstallments">Número de Parcelas</label>
+                <input type="number" min="1" id="cpInstallments" value="1" required>
+              </div>
+              <div class="form-group">
+                <label for="cpDate">Data da Compra</label>
+                <input type="date" id="cpDate" required>
+              </div>
+              <button type="submit">Registrar Compra</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Lista de Cartões -->
+        <div class="card mt-15">
+          <div class="flex-between">
+            <h3>Seus Cartões</h3>
+            <button onclick="loadCreditCards()" class="btn-sm">🔄 Atualizar Cartões</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Fechamento</th>
+                <th>Vencimento</th>
+                <th>Limite</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="cardsTableBody">
+              <tr><td colspan="5">Clique em "Atualizar Cartões" para carregar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Faturas do Cartão Selecionado -->
+        <div class="card mt-15">
+          <h3>Faturas do Cartão</h3>
+          <div class="form-inline mb-10">
+            <div class="form-group">
+              <label for="selectCardInvoice">Selecione o Cartão</label>
+              <select id="selectCardInvoice" onchange="loadCardInvoices()"></select>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Mês/Ano</th>
+                <th>Valor Total</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="invoicesTableBody">
+              <tr><td colspan="4">Selecione um cartão para visualizar as faturas.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA 5: PARCERIA -->
+      <div id="tab-partnership" class="tab-pane">
+        <h2>Gestão de Parceria (Finanças em Casal)</h2>
+        <div class="section-grid mt-15">
+          <!-- Status Atual -->
+          <div class="card">
+            <div class="flex-between">
+              <h3>Parceria Ativa / Pendente</h3>
+              <button onclick="loadActivePartnership()" class="btn-sm">🔄 Checar Status</button>
+            </div>
+            <div id="partnershipStatusContent" class="mt-10">
+              <p>Carregando status da parceria...</p>
+            </div>
+          </div>
+
+          <!-- Convidar Parceiro -->
+          <div class="card">
+            <h3>Convidar Parceiro(a)</h3>
+            <form id="invitePartnerForm" onsubmit="handleInvitePartner(event)">
+              <div class="form-group">
+                <label for="invitePhone">Telefone do Parceiro (Formato E.164 Ex: +5511977777777)</label>
+                <input type="text" id="invitePhone" placeholder="+5511977777777" required>
+              </div>
+              <button type="submit" class="btn-success">Enviar Convite de Parceria</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 6: ACERTOS (SETTLEMENTS) -->
+      <div id="tab-settlements" class="tab-pane">
+        <h2>Acertos de Contas (Net Balance)</h2>
+        <p><small>Calcule quem deve a quem no mês com base nos gastos compartilhados e acerte o valor líquido.</small></p>
+        
+        <div class="card mt-15 mb-10">
+          <h3>Consultar Saldo Líquido do Mês</h3>
+          <div class="form-inline">
+            <div class="form-group">
+              <label for="settlementMonth">Mês (YYYY-MM)</label>
+              <input type="month" id="settlementMonth">
+            </div>
+            <div>
+              <button onclick="loadNetBalance()" class="btn-success">Consultar Saldo Líquido</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-grid mt-15">
+          <!-- Resultado do Saldo Líquido -->
+          <div class="card">
+            <h3>Resumo do Saldo Líquido</h3>
+            <div id="netBalanceResult">
+              <p>Selecione o mês acima para calcular.</p>
+            </div>
+          </div>
+
+          <!-- Form de Pagamento do Acerto -->
+          <div class="card">
+            <h3>Liquidar / Pagar Acerto</h3>
+            <form id="settlementPayForm" onsubmit="handlePaySettlement(event)">
+              <div class="form-group">
+                <label for="spMonth">Mês do Acerto (YYYY-MM)</label>
+                <input type="month" id="spMonth" required>
+              </div>
+              <div class="form-group">
+                <label for="spAmount">Valor a Liquidar (R$)</label>
+                <input type="number" step="0.01" id="spAmount" placeholder="0.00" required>
+              </div>
+              <div class="form-group">
+                <label for="spAccount">Conta Usada no Pagamento</label>
+                <select id="spAccount" required></select>
+              </div>
+              <button type="submit" class="btn-success">Confirmar Pagamento do Acerto</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 7: TRANSAÇÕES RECORRENTES -->
+      <div id="tab-recurring" class="tab-pane">
+        <div class="flex-between">
+          <h2>Transações Recorrentes (Salários e Despesas Fixas)</h2>
+          <button onclick="loadRecurringTransactions()" class="btn-sm">🔄 Atualizar Recorrentes</button>
+        </div>
+
+        <div class="section-grid mt-15">
+          <!-- Form Recorrente -->
+          <div class="card">
+            <h3>Nova Transação Recorrente</h3>
+            <form id="recurringForm" onsubmit="handleRecurringSubmit(event)">
+              <div class="form-group">
+                <label for="recType">Tipo</label>
+                <select id="recType" required>
+                  <option value="INCOME">Salário / Receita Fixa (Entrada)</option>
+                  <option value="EXPENSE">Aluguel / Despesa Fixa (Saída)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="recAmount">Valor (R$)</label>
+                <input type="number" step="0.01" id="recAmount" placeholder="0.00" required>
+              </div>
+              <div class="form-group">
+                <label for="recDescription">Descrição</label>
+                <input type="text" id="recDescription" placeholder="Ex: Salário Mensal, Aluguel" required>
+              </div>
+              <div class="form-group">
+                <label for="recCategory">Categoria</label>
+                <select id="recCategory" required></select>
+              </div>
+              <div class="form-group">
+                <label for="recDueDay">Dia de Vencimento/Execução no Mês (1-28)</label>
+                <input type="number" min="1" max="28" id="recDueDay" value="5" required>
+              </div>
+              <div class="form-group">
+                <label for="recAccount">Conta de Destino/Débito</label>
+                <select id="recAccount" required></select>
+              </div>
+              <button type="submit" class="btn-success">Cadastrar Recorrente</button>
+            </form>
+          </div>
+
+          <!-- Tabela de Recorrentes -->
+          <div class="card" style="grid-column: span 2;">
+            <h3>Lista de Recorrentes</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Descrição</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Dia Mês</th>
+                  <th>Categoria</th>
+                  <th>Conta</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="recurringTableBody">
+                <tr><td colspan="7">Carregando recorrentes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- API Console / Log Output Panel -->
+    <div class="log-panel">
+      <h4>
+        <span>📋 Log de Respostas da API</span>
+        <button onclick="clearLogs()" class="btn-sm" style="padding: 2px 6px; font-size: 0.7rem;">Limpar Logs</button>
+      </h4>
+      <div id="logContent">
+        <div class="log-entry info">Sistema iniciado (v1.0.3). Faça login ou registre-se para testar os endpoints da API Rubi.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/app.js?v=1.0.3"></script>
+</body>
+</html>
