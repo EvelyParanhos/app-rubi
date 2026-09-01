@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rubi - Protótipo de Baixa Fidelidade</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.0.3">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.5">
 </head>
 <body>
   <div class="container">
@@ -12,7 +12,7 @@
     <header>
       <div>
         <h1>💎 Rubi - Protótipo de Baixa Fidelidade</h1>
-        <small>Interface de Teste & Prototipação Rápida da API Rubi (v1.0.3)</small>
+        <small>Interface de Teste & Prototipação Rápida da API Rubi (v1.0.5)</small>
       </div>
       <div class="user-status">
         <span id="authStatusBadge" class="badge logged-out">Desconectado</span>
@@ -44,8 +44,9 @@
             <h3>Login de Usuário</h3>
             <form id="loginForm" onsubmit="handleLogin(event)">
               <div class="form-group">
-                <label for="loginPhone">Telefone (Formato E.164 Ex: +5511999999999)</label>
-                <input type="text" id="loginPhone" placeholder="+5511999999999" required>
+                <label for="loginPhone">Telefone (Ex: 11999999999 ou +5511999999999)</label>
+                <input type="text" id="loginPhone" placeholder="+5511999999999 ou 11999999999" required>
+                <small style="color: #666;">Formatação internacional E.164 ajustada automaticamente.</small>
               </div>
               <div class="form-group">
                 <label for="loginPin">PIN / Senha</label>
@@ -64,8 +65,9 @@
                 <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
               </div>
               <div class="form-group">
-                <label for="regPhone">Telefone (Formato E.164 Ex: +5511988888888)</label>
-                <input type="text" id="regPhone" placeholder="+5511988888888" required>
+                <label for="regPhone">Telefone (Ex: 11988888888 ou +5511988888888)</label>
+                <input type="text" id="regPhone" placeholder="+5511988888888 ou 11988888888" required>
+                <small style="color: #666;">Será convertido automaticamente para o formato +55...</small>
               </div>
               <div class="form-group">
                 <label for="regPin">PIN / Senha</label>
@@ -79,11 +81,12 @@
           <div class="card">
             <h3>Vincular Telegram</h3>
             <div style="background: #eef6fc; border: 1px solid #b6d4fe; padding: 10px; margin-bottom: 10px; font-size: 0.8rem;">
-              <strong>ℹ️ Como descobrir seu ID do Telegram:</strong>
+              <strong>ℹ️ Como funciona o vínculo do Telegram:</strong>
+              <p style="margin-top: 4px;">Ao vincular seu ID, o Bot do Telegram do Rubi permite registrar gastos e consultar saldos por mensagens/áudios sem abrir o navegador!</p>
               <ol style="margin-left: 15px; margin-top: 4px;">
-                <li>No Telegram, busque o bot <strong>@userinfobot</strong> ou <strong>@GetIDBot</strong>.</li>
+                <li>No Telegram, busque por <strong>@userinfobot</strong> ou <strong>@GetIDBot</strong>.</li>
                 <li>Envie <code>/start</code>.</li>
-                <li>Ele enviará seu número de <strong>ID</strong> (ex: <code>123456789</code>). Copie e cole abaixo.</li>
+                <li>Copie o seu número de <strong>ID</strong> (ex: <code>123456789</code>) e cole abaixo.</li>
               </ol>
             </div>
             <form id="telegramForm" onsubmit="handleTelegramLink(event)">
@@ -112,16 +115,16 @@
               <input type="hidden" id="accountId">
               <div class="form-group">
                 <label for="accName">Nome da Conta / Banco</label>
-                <input type="text" id="accName" placeholder="Ex: Nubank, Itaú Principal" required>
+                <input type="text" id="accName" placeholder="Ex: Nubank Corrente, Cartão Nubank" required>
               </div>
               <div class="form-group">
                 <label for="accType">Tipo de Conta</label>
                 <select id="accType" required>
-                  <option value="CHECKING">Conta Corrente</option>
-                  <option value="SAVINGS">Conta Poupança</option>
-                  <option value="INVESTMENT">Investimento</option>
-                  <option value="CASH">Carteira / Dinheiro Físico</option>
+                  <option value="CHECKING">CHECKING (Conta Corrente)</option>
+                  <option value="SAVINGS">SAVINGS (Conta Poupança)</option>
+                  <option value="LIABILITY">LIABILITY (Passivo / Cartão de Crédito)</option>
                 </select>
+                <small style="color: #666;">* Para cadastrar um Cartão de Crédito, a conta vinculada deve ser do tipo <strong>LIABILITY (Passivo)</strong>.</small>
               </div>
               <div class="form-group">
                 <label for="accBalance">Saldo Inicial (R$)</label>
@@ -202,8 +205,8 @@
               <div class="form-group">
                 <label for="txType">Tipo de Transação</label>
                 <select id="txType" required>
-                  <option value="DEBIT">Despesa / Saída (Débito)</option>
-                  <option value="CREDIT">Receita / Entrada (Crédito)</option>
+                  <option value="DEBIT">Despesa / Saída (DEBIT)</option>
+                  <option value="CREDIT">Receita / Entrada (CREDIT)</option>
                 </select>
               </div>
               <div class="form-group">
@@ -300,8 +303,9 @@
             <h3>Novo Cartão de Crédito</h3>
             <form id="cardForm" onsubmit="handleCardSubmit(event)">
               <div class="form-group">
-                <label for="cardAccount">Conta Vinculada ao Cartão</label>
+                <label for="cardAccount">Conta do Tipo Passivo (LIABILITY) do Cartão</label>
                 <select id="cardAccount" required></select>
+                <small style="color: #666;">Se não houver opção, crie primeiro uma conta do tipo <strong>LIABILITY (Passivo)</strong> na aba Contas.</small>
               </div>
               <div class="form-group">
                 <label for="cardName">Nome do Cartão</label>
@@ -410,7 +414,7 @@
           <!-- Status Atual -->
           <div class="card">
             <div class="flex-between">
-              <h3>Parceria Ativa / Pendente</h3>
+              <h3>Status da Parceria</h3>
               <button onclick="loadActivePartnership()" class="btn-sm">🔄 Checar Status</button>
             </div>
             <div id="partnershipStatusContent" class="mt-10">
@@ -423,7 +427,7 @@
             <h3>Convidar Parceiro(a)</h3>
             <form id="invitePartnerForm" onsubmit="handleInvitePartner(event)">
               <div class="form-group">
-                <label for="invitePhone">Telefone do Parceiro (Formato E.164 Ex: +5511977777777)</label>
+                <label for="invitePhone">Telefone do Parceiro (Ex: 11977777777 ou +5511977777777)</label>
                 <input type="text" id="invitePhone" placeholder="+5511977777777" required>
               </div>
               <button type="submit" class="btn-success">Enviar Convite de Parceria</button>
@@ -517,7 +521,7 @@
                 <input type="number" min="1" max="28" id="recDueDay" value="5" required>
               </div>
               <div class="form-group">
-                <label for="recAccount">Conta de Destino/Débito</label>
+                <label for="recAccount">Conta Vinculada</label>
                 <select id="recAccount" required></select>
               </div>
               <button type="submit" class="btn-success">Cadastrar Recorrente</button>
@@ -556,12 +560,12 @@
         <button onclick="clearLogs()" class="btn-sm" style="padding: 2px 6px; font-size: 0.7rem;">Limpar Logs</button>
       </h4>
       <div id="logContent">
-        <div class="log-entry info">Sistema iniciado (v1.0.3). Faça login ou registre-se para testar os endpoints da API Rubi.</div>
+        <div class="log-entry info">Sistema iniciado (v1.0.5). Faça login ou registre-se para testar os endpoints da API Rubi.</div>
       </div>
     </div>
 
   </div>
 
-  <script src="/js/app.js?v=1.0.3"></script>
+  <script src="/js/app.js?v=1.0.5"></script>
 </body>
 </html>

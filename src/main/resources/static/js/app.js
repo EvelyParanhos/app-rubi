@@ -1,6 +1,11 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.3) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.5) */
 
-const API_BASE = '/api';
+function getApiBase() {
+  if (window.location.protocol === 'file:') {
+    return 'http://localhost:8080/api';
+  }
+  return '/api';
+}
 
 const CATEGORIES = {
   "PETS": "🐶 Pets / Animais",
@@ -28,12 +33,26 @@ const CATEGORIES = {
 const ACCOUNT_TYPE_MAP = {
   "CHECKING": "Conta Corrente",
   "SAVINGS": "Conta Poupança",
-  "INVESTMENT": "Investimento",
-  "CASH": "Carteira / Dinheiro Físico"
+  "LIABILITY": "Passivo / Cartão de Crédito"
 };
 
 let globalAccountsCache = [];
 let globalCardsCache = [];
+
+// --- PHONE NUMBER FORMATTER (E.164) ---
+function formatE164Phone(phoneStr) {
+  if (!phoneStr) return '';
+  let trimmed = phoneStr.trim();
+  if (trimmed.startsWith('+')) {
+    let digits = trimmed.substring(1).replace(/\D/g, '');
+    return '+' + digits;
+  }
+  let digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10 || digits.length === 11) {
+    return '+55' + digits;
+  }
+  return '+' + digits;
+}
 
 // --- LOGGING UTILITIES ---
 function log(message, type = 'info') {
@@ -130,10 +149,11 @@ async function apiCall(endpoint, method = 'GET', body = null) {
     options.body = JSON.stringify(body);
   }
 
-  log(`HttpRequest: ${method} ${endpoint}`, 'info');
+  const baseUrl = getApiBase();
+  log(`HttpRequest: ${method} ${baseUrl}${endpoint}`, 'info');
 
   try {
-    const res = await fetch(`${API_BASE}${endpoint}`, options);
+    const res = await fetch(`${baseUrl}${endpoint}`, options);
     
     let resData = null;
     const contentType = res.headers.get('content-type');
@@ -159,36 +179,52 @@ async function apiCall(endpoint, method = 'GET', body = null) {
 // --- AUTH HANDLERS ---
 async function handleLogin(e) {
   e.preventDefault();
-  const phone = document.getElementById('loginPhone').value.trim();
+  const rawPhone = document.getElementById('loginPhone').value;
   const pin = document.getElementById('loginPin').value.trim();
+  const formattedPhone = formatE164Phone(rawPhone);
 
-  const res = await apiCall('/auth/login', 'POST', { phone_number: phone, pin: pin });
+  if (!formattedPhone || formattedPhone.length < 8) {
+    alert('Por favor, informe um número de telefone válido (ex: 11999999999 ou +5511999999999).');
+    return;
+  }
+
+  log(`Tentando login com telefone formatado: ${formattedPhone}`);
+  const res = await apiCall('/auth/login', 'POST', { phone_number: formattedPhone, pin: pin });
   if (res.ok && res.data.token) {
     setToken(res.data.token);
     alert('Login realizado com sucesso!');
     switchTab('accounts');
   } else {
-    alert('Falha no login. Verifique o telefone e PIN.');
+    const errorDetail = res.data && res.data.error ? res.data.error : (res.status === 400 ? 'Telefone ou PIN incorretos.' : 'Falha no login');
+    alert(`Erro no login (${res.status}): ${errorDetail}`);
   }
 }
 
 async function handleRegister(e) {
   e.preventDefault();
   const name = document.getElementById('regName').value.trim();
-  const phone = document.getElementById('regPhone').value.trim();
+  const rawPhone = document.getElementById('regPhone').value;
   const pin = document.getElementById('regPin').value.trim();
+  const formattedPhone = formatE164Phone(rawPhone);
 
-  const res = await apiCall('/users/register', 'POST', { name, phone_number: phone, pin });
+  if (!formattedPhone || formattedPhone.length < 8) {
+    alert('Por favor, informe um número de telefone válido (ex: 11988888888 ou +5511988888888).');
+    return;
+  }
+
+  log(`Cadastrando usuário: ${name}, ${formattedPhone}`);
+  const res = await apiCall('/users/register', 'POST', { name, phone_number: formattedPhone, pin });
   if (res.ok) {
     alert('Usuário cadastrado com sucesso!');
-    if (res.data.token) {
+    if (res.data && res.data.token) {
       setToken(res.data.token);
       switchTab('accounts');
     }
   } else if (res.status === 409) {
-    alert('Conflito: Telefone já cadastrado.');
+    alert('Conflito: Este número de telefone já está cadastrado. Tente realizar o login.');
   } else {
-    alert('Erro ao registrar usuário.');
+    const errorDetail = res.data && res.data.error ? res.data.error : 'Verifique os dados informados.';
+    alert(`Erro ao cadastrar (${res.status}): ${errorDetail}`);
   }
 }
 
@@ -197,9 +233,9 @@ async function handleTelegramLink(e) {
   const chatId = document.getElementById('telegramChatId').value.trim();
   const res = await apiCall('/users/telegram-link', 'POST', { telegram_chat_id: chatId });
   if (res.ok) {
-    alert('Telegram vinculado com sucesso!');
+    alert('Telegram vinculado com sucesso! Agora você pode interagir com a IA pelo Telegram.');
   } else {
-    alert('Erro ao vincular Telegram.');
+    alert('Erro ao vincular Telegram. Certifique-se de estar conectado.');
   }
 }
 
@@ -235,7 +271,7 @@ async function loadAccounts() {
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-error">Erro ao carregar contas.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="6" class="text-error">Erro ao carregar contas (${res.status}).</td></tr>`;
   }
 }
 
@@ -288,7 +324,8 @@ async function handleAccountSubmit(e) {
     resetAccountForm();
     loadAccounts();
   } else {
-    alert('Erro ao salvar conta. Verifique o console de log abaixo.');
+    const detail = res.data && res.data.error ? res.data.error : '';
+    alert(`Erro ao salvar conta (${res.status}): ${detail}`);
   }
 }
 
@@ -309,13 +346,14 @@ function populateAccountSelects() {
     const el = document.getElementById(selectId);
     if (!el) return;
     const currentVal = el.value;
-    el.innerHTML = selectId === 'filterAccount' ? '<option value="">Todas as Contas</option>' : '';
+    el.innerHTML = selectId === 'filterAccount' ? '<option value="">Todas as Contas</option>' : (selectId === 'cardAccount' ? '<option value="">-- Selecione a Conta (Preferencialmente LIABILITY) --</option>' : '');
     
     globalAccountsCache.forEach(acc => {
       const typeLabel = ACCOUNT_TYPE_MAP[acc.type] || acc.type;
+      const isLiability = acc.type === 'LIABILITY';
       const opt = document.createElement('option');
       opt.value = acc.id;
-      opt.textContent = `${acc.name} (${typeLabel}) - ${formatCurrency(acc.balance, acc.currency)}`;
+      opt.textContent = `${acc.name} (${typeLabel}) - ${formatCurrency(acc.balance, acc.currency)}${isLiability ? ' [Passivo/Cartão]' : ''}`;
       el.appendChild(opt);
     });
 
@@ -368,7 +406,7 @@ async function loadTransactions() {
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = '<tr><td colspan="8">Erro ao carregar extrato de transações.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="8">Erro ao carregar extrato de transações (${res.status}).</td></tr>`;
   }
 }
 
@@ -399,7 +437,8 @@ async function handleTransactionSubmit(e) {
     loadTransactions();
     loadAccounts(); // Refresh balance
   } else {
-    alert('Erro ao registrar transação. Verifique os campos.');
+    const detail = res.data && res.data.error ? res.data.error : '';
+    alert(`Erro ao registrar transação (${res.status}): ${detail}`);
   }
 }
 
@@ -511,7 +550,8 @@ async function handleCardSubmit(e) {
     document.getElementById('cardName').value = '';
     loadCreditCards();
   } else {
-    alert('Erro ao cadastrar cartão de crédito. Verifique se selecionou a conta.');
+    const detail = res.data && res.data.error ? res.data.error : 'A conta selecionada deve ser do tipo LIABILITY (Passivo)!';
+    alert(`Erro ao cadastrar cartão (${res.status}): ${detail}`);
   }
 }
 
@@ -602,7 +642,7 @@ async function payInvoicePrompt(invoiceId, amount) {
 // --- PARTNERSHIP HANDLERS ---
 async function loadActivePartnership() {
   const statusDiv = document.getElementById('partnershipStatusContent');
-  statusDiv.innerHTML = '<p>Buscando detalhes da parceria ativa...</p>';
+  statusDiv.innerHTML = '<p>Buscando detalhes da parceria...</p>';
 
   const res = await apiCall('/partnerships/active', 'GET');
   if (res.ok && res.data) {
@@ -611,18 +651,25 @@ async function loadActivePartnership() {
       statusDiv.innerHTML = `
         <p><strong>Status:</strong> <span class="badge logged-in">PARCERIA ATIVA</span></p>
         <p><strong>Parceiro(a):</strong> ${escapeHtml(p.partner_name || 'N/A')}</p>
-        <p><strong>ID do Parceiro:</strong> <code>${p.partner_id || 'N/A'}</code></p>
+        <p><strong>ID da Parceria:</strong> <code>${p.id || 'N/A'}</code></p>
         <div class="mt-15">
-          <button onclick="promptPartnershipUpdate('TERMINATED')" class="btn-danger">Encerrar Parceria</button>
+          ${p.id ? `<button onclick="updatePartnershipStatus('${p.id}', 'TERMINATED')" class="btn-danger">Encerrar Parceria</button>` : ''}
+        </div>
+      `;
+    } else if (p.status === 'PENDING' || p.id) {
+      statusDiv.innerHTML = `
+        <p><strong>Status:</strong> <span class="badge logged-out">⏳ CONVITE PENDENTE</span></p>
+        <p><strong>Parceiro(a):</strong> ${escapeHtml(p.partner_name || 'N/A')}</p>
+        <p><strong>ID do Convite:</strong> <code>${p.id}</code></p>
+        <div class="mt-15" style="display: flex; gap: 10px;">
+          <button onclick="updatePartnershipStatus('${p.id}', 'ACTIVE')" class="btn-success">Aceitar Convite de Parceria</button>
+          <button onclick="updatePartnershipStatus('${p.id}', 'TERMINATED')" class="btn-danger">Rejeitar Convite</button>
         </div>
       `;
     } else {
       statusDiv.innerHTML = `
         <p>Nenhuma parceria ativa no momento.</p>
-        <p><small>Se você recebeu um convite de parceria com um ID, clique no botão abaixo para aceitar.</small></p>
-        <div class="mt-10">
-          <button onclick="promptPartnershipUpdate('ACTIVE')" class="btn-success">Aceitar Convite por ID</button>
-        </div>
+        <p><small>Ao convidar alguém por telefone, o convite ficará pendente de aceite.</small></p>
       `;
     }
   } else {
@@ -632,20 +679,17 @@ async function loadActivePartnership() {
 
 async function handleInvitePartner(e) {
   e.preventDefault();
-  const phone = document.getElementById('invitePhone').value.trim();
-  const res = await apiCall('/partnerships/invite', 'POST', { target_phone_number: phone });
+  const rawPhone = document.getElementById('invitePhone').value;
+  const formattedPhone = formatE164Phone(rawPhone);
+  const res = await apiCall('/partnerships/invite', 'POST', { target_phone_number: formattedPhone });
   if (res.ok) {
-    alert('Convite de parceria enviado com sucesso!');
+    const pId = res.data && res.data.id ? res.data.id : '';
+    alert(`Convite enviado com sucesso! ${pId ? 'ID do Convite: ' + pId : ''}`);
     loadActivePartnership();
   } else {
-    alert('Erro ao enviar convite de parceria. Verifique se o telefone do parceiro já está cadastrado no Rubi.');
+    const detail = res.data && res.data.error ? res.data.error : '';
+    alert(`Erro ao enviar convite de parceria (${res.status}): ${detail}`);
   }
-}
-
-async function promptPartnershipUpdate(newStatus) {
-  const pId = prompt(`Insira o ID da Parceria (UUID) para marcar como ${newStatus}:`);
-  if (!pId || pId.trim() === '') return;
-  updatePartnershipStatus(pId.trim(), newStatus);
 }
 
 async function updatePartnershipStatus(id, newStatus) {
@@ -657,7 +701,7 @@ async function updatePartnershipStatus(id, newStatus) {
   if (!confirm(`Deseja alterar o status da parceria para ${newStatus}?`)) return;
   const res = await apiCall(`/partnerships/${id}`, 'PATCH', { status: newStatus });
   if (res.ok) {
-    alert('Status da parceria atualizado!');
+    alert('Status da parceria atualizado com sucesso!');
     loadActivePartnership();
   } else {
     alert('Erro ao atualizar parceria.');
@@ -740,13 +784,14 @@ async function loadRecurringTransactions() {
       const tr = document.createElement('tr');
       const isExpense = rec.type === 'EXPENSE';
       const typeLabel = isExpense ? 'Despesa Fixa' : 'Salário / Receita';
+      const targetAccId = rec.account_id || rec.target_account_id;
       tr.innerHTML = `
         <td><strong>${escapeHtml(rec.description)}</strong></td>
         <td>${typeLabel}</td>
         <td>${formatCurrency(rec.amount)}</td>
         <td>Dia ${rec.due_day || rec.execution_day}</td>
         <td>${formatCategory(rec.category)}</td>
-        <td>${getAccountName(rec.account_id || rec.target_account_id)}</td>
+        <td>${getAccountName(targetAccId)}</td>
         <td>
           <button onclick="deleteRecurringTransaction('${rec.id}')" class="btn-sm btn-danger">Excluir</button>
         </td>
@@ -833,6 +878,17 @@ function escapeHtml(str) {
 document.addEventListener('DOMContentLoaded', () => {
   updateAuthUI();
   populateCategorySelects();
+
+  // Auto-format phone input fields on blur/change
+  const phoneInputs = ['loginPhone', 'regPhone', 'invitePhone'];
+  phoneInputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('blur', () => {
+        if (el.value) el.value = formatE164Phone(el.value);
+      });
+    }
+  });
 
   // Set default current month (YYYY-MM) in month inputs
   const now = new Date();
