@@ -34,10 +34,6 @@ public class Account {
     @Column(nullable = false)
     private AccountType type;
 
-    @Column(name = "is_joint", nullable = false)
-    @Builder.Default
-    private Boolean isJoint = false;
-
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;

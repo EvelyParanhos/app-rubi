@@ -1,4 +1,4 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.6) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.8 - Forecast 12 Meses) */
 
 function getApiBase() {
   if (window.location.protocol === 'file:') {
@@ -38,6 +38,8 @@ const ACCOUNT_TYPE_MAP = {
 
 let globalAccountsCache = [];
 let globalCardsCache = [];
+let globalForecastResponse = null;
+let selectedForecastMonth = null;
 
 // --- PHONE NUMBER FORMATTER (E.164) ---
 function formatE164Phone(phoneStr) {
@@ -90,9 +92,7 @@ function switchTab(tabName) {
     if (tabName === 'accounts') loadAccounts();
     if (tabName === 'transactions') { populateAccountSelects(); loadTransactions(); }
     if (tabName === 'cards') { loadAccounts(); loadCreditCards(); populateCategorySelects(); }
-    if (tabName === 'partnership') loadActivePartnership();
-    if (tabName === 'settlements') { populateAccountSelects(); }
-    if (tabName === 'recurring') { populateAccountSelects(); loadRecurringTransactions(); }
+    if (tabName === 'forecast') { populateAccountSelects(); populateCategorySelects(); loadForecast(); loadRecurringMasterList(); }
   }
 }
 
@@ -250,7 +250,7 @@ async function loadAccounts() {
     populateAccountSelects();
 
     if (res.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6">Nenhuma conta cadastrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">Nenhuma conta cadastrada.</td></tr>';
       return;
     }
 
@@ -262,7 +262,6 @@ async function loadAccounts() {
         <td>${typeLabel}</td>
         <td>${formatCurrency(acc.balance, acc.currency)}</td>
         <td>${acc.currency || 'BRL'}</td>
-        <td>${acc.is_joint ? '🤝 Sim' : 'Não'}</td>
         <td>
           <button onclick="editAccount('${acc.id}')" class="btn-sm">Editar</button>
           <button onclick="deleteAccount('${acc.id}')" class="btn-sm btn-danger">Excluir</button>
@@ -271,7 +270,7 @@ async function loadAccounts() {
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-error">Erro ao carregar contas (${res.status}).</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-error">Erro ao carregar contas (${res.status}).</td></tr>`;
   }
 }
 
@@ -281,7 +280,6 @@ function resetAccountForm() {
   document.getElementById('accType').value = 'CHECKING';
   document.getElementById('accBalance').value = '0.00';
   document.getElementById('accCurrency').value = 'BRL';
-  document.getElementById('accIsJoint').checked = false;
   document.getElementById('accountFormTitle').textContent = 'Nova Conta';
   document.getElementById('accSubmitBtn').textContent = 'Salvar Conta';
   document.getElementById('accCancelBtn').style.display = 'none';
@@ -295,7 +293,6 @@ function editAccount(id) {
   document.getElementById('accType').value = acc.type;
   document.getElementById('accBalance').value = acc.balance;
   document.getElementById('accCurrency').value = acc.currency || 'BRL';
-  document.getElementById('accIsJoint').checked = !!acc.is_joint;
 
   document.getElementById('accountFormTitle').textContent = 'Editar Conta';
   document.getElementById('accSubmitBtn').textContent = 'Atualizar Conta';
@@ -308,7 +305,6 @@ async function handleAccountSubmit(e) {
   const body = {
     name: document.getElementById('accName').value.trim(),
     type: document.getElementById('accType').value,
-    is_joint: document.getElementById('accIsJoint').checked,
     initial_balance: parseFloat(document.getElementById('accBalance').value)
   };
 
@@ -341,7 +337,7 @@ async function deleteAccount(id) {
 }
 
 function populateAccountSelects() {
-  const selectIds = ['filterAccount', 'txAccount', 'trFromAccount', 'trToAccount', 'spAccount', 'recAccount', 'cardAccount'];
+  const selectIds = ['filterAccount', 'txAccount', 'trFromAccount', 'trToAccount', 'recAccount', 'cardAccount'];
   selectIds.forEach(selectId => {
     const el = document.getElementById(selectId);
     if (!el) return;
@@ -379,7 +375,7 @@ async function loadTransactions() {
 
   if (res.ok && Array.isArray(res.data)) {
     if (res.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8">Nenhuma transação encontrada no período.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">Nenhuma transação encontrada no período.</td></tr>';
       return;
     }
 
@@ -398,7 +394,6 @@ async function loadTransactions() {
         <td style="${amountColor}"><strong>${sign} ${formatCurrency(tx.amount)}</strong></td>
         <td>${formatCategory(tx.category)}</td>
         <td>${getAccountName(tx.account_id)}</td>
-        <td>${tx.shared ? '🤝 Sim' : 'Não'}</td>
         <td>
           <button onclick="deleteTransaction('${tx.id}')" class="btn-sm btn-danger">Excluir</button>
         </td>
@@ -406,28 +401,20 @@ async function loadTransactions() {
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = `<tr><td colspan="8">Erro ao carregar extrato de transações (${res.status}).</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">Erro ao carregar extrato de transações (${res.status}).</td></tr>`;
   }
 }
 
 async function handleTransactionSubmit(e) {
   e.preventDefault();
-  const isShared = document.getElementById('txShared').checked;
   const body = {
     account_id: document.getElementById('txAccount').value,
     amount: parseFloat(document.getElementById('txAmount').value),
-    type: document.getElementById('txType').value, // 'DEBIT' or 'CREDIT'
+    type: document.getElementById('txType').value,
     description: document.getElementById('txDescription').value.trim(),
     category: document.getElementById('txCategory').value,
     reference_date: document.getElementById('txDate').value ? new Date(document.getElementById('txDate').value).toISOString() : new Date().toISOString()
   };
-
-  if (isShared) {
-    const splitPct = parseFloat(document.getElementById('txSplitPercentage').value);
-    if (!isNaN(splitPct)) {
-      body.split_percentage = splitPct;
-    }
-  }
 
   const res = await apiCall('/transactions', 'POST', body);
   if (res.ok) {
@@ -435,7 +422,7 @@ async function handleTransactionSubmit(e) {
     document.getElementById('txDescription').value = '';
     document.getElementById('txAmount').value = '';
     loadTransactions();
-    loadAccounts(); // Refresh balance
+    loadAccounts();
   } else {
     const detail = res.data && res.data.error ? res.data.error : '';
     alert(`Erro ao registrar transação (${res.status}): ${detail}`);
@@ -643,144 +630,143 @@ async function payInvoicePrompt(invoiceId, amount) {
   }
 }
 
-// --- PARTNERSHIP HANDLERS ---
-async function loadActivePartnership() {
-  const statusDiv = document.getElementById('partnershipStatusContent');
-  statusDiv.innerHTML = '<p>Buscando detalhes da parceria...</p>';
+// --- 🔮 FORECAST 12 MESES & CHECKLIST HANDLERS ---
+async function loadForecast(startMonth = '') {
+  let endpoint = '/forecast/monthly?months=12';
+  if (startMonth) endpoint += `&start_month=${startMonth}`;
 
-  const res = await apiCall('/partnerships/active', 'GET');
-  if (res.ok && res.data) {
-    const p = res.data;
-    if (p.has_active_partnership) {
-      statusDiv.innerHTML = `
-        <p><strong>Status:</strong> <span class="badge logged-in">PARCERIA ATIVA</span></p>
-        <p><strong>Parceiro(a):</strong> ${escapeHtml(p.partner_name || 'N/A')}</p>
-        <p><strong>ID da Parceria:</strong> <code>${p.id || 'N/A'}</code></p>
-        <div class="mt-15">
-          ${p.id ? `<button onclick="updatePartnershipStatus('${p.id}', 'TERMINATED')" class="btn-danger">Encerrar Parceria</button>` : ''}
-        </div>
-      `;
-    } else if (p.status === 'PENDING' || p.id) {
-      statusDiv.innerHTML = `
-        <p><strong>Status:</strong> <span class="badge logged-out">⏳ CONVITE PENDENTE</span></p>
-        <p><strong>Parceiro(a):</strong> ${escapeHtml(p.partner_name || 'N/A')}</p>
-        <p><strong>ID do Convite:</strong> <code>${p.id}</code></p>
-        <div class="mt-15" style="display: flex; gap: 10px;">
-          <button onclick="updatePartnershipStatus('${p.id}', 'ACTIVE')" class="btn-success">Aceitar Convite de Parceria</button>
-          <button onclick="updatePartnershipStatus('${p.id}', 'TERMINATED')" class="btn-danger">Rejeitar Convite</button>
-        </div>
-      `;
-    } else {
-      statusDiv.innerHTML = `
-        <p>Nenhuma parceria ativa no momento.</p>
-        <p><small>Ao convidar alguém por telefone, o convite ficará pendente de aceite.</small></p>
-      `;
+  const res = await apiCall(endpoint, 'GET');
+  if (res.ok && res.data && Array.isArray(res.data.months)) {
+    globalForecastResponse = res.data;
+    if (!selectedForecastMonth || !res.data.months.some(m => m.month === selectedForecastMonth)) {
+      selectedForecastMonth = res.data.months[0].month;
     }
+    renderForecastUI();
   } else {
-    statusDiv.innerHTML = '<p>Nenhuma parceria ativa no momento.</p>';
+    document.getElementById('forecastTableBody').innerHTML = '<tr><td colspan="7">Erro ao carregar previsão de 12 meses.</td></tr>';
   }
 }
 
-async function handleInvitePartner(e) {
-  e.preventDefault();
-  const rawPhone = document.getElementById('invitePhone').value;
-  const formattedPhone = formatE164Phone(rawPhone);
-  const res = await apiCall('/partnerships/invite', 'POST', { target_phone_number: formattedPhone });
-  if (res.ok) {
-    const pId = res.data && res.data.id ? res.data.id : '';
-    alert(`Convite enviado com sucesso! ${pId ? 'ID do Convite: ' + pId : ''}`);
-    loadActivePartnership();
-  } else {
-    const detail = res.data && res.data.error ? res.data.error : '';
-    alert(`Erro ao enviar convite de parceria (${res.status}): ${detail}`);
-  }
-}
+function renderForecastUI() {
+  if (!globalForecastResponse || !globalForecastResponse.months) return;
 
-async function updatePartnershipStatus(id, newStatus) {
-  if (!id || id === 'undefined' || id.length < 30) {
-    alert('ID da parceria inválido.');
+  // Render Month Buttons
+  const container = document.getElementById('monthSelectorContainer');
+  container.innerHTML = '';
+
+  globalForecastResponse.months.forEach(mItem => {
+    const btn = document.createElement('button');
+    const isSelected = mItem.month === selectedForecastMonth;
+    btn.className = `btn-sm ${isSelected ? 'btn-success' : ''}`;
+    btn.style.padding = '6px 12px';
+    btn.style.fontWeight = isSelected ? 'bold' : 'normal';
+    btn.textContent = mItem.month;
+    btn.onclick = () => {
+      selectedForecastMonth = mItem.month;
+      renderForecastUI();
+    };
+    container.appendChild(btn);
+  });
+
+  // Find selected month item
+  const mData = globalForecastResponse.months.find(m => m.month === selectedForecastMonth);
+  if (!mData) return;
+
+  // Render Metrics
+  document.getElementById('fcTotalIncome').textContent = formatCurrency(mData.total_income);
+  document.getElementById('fcTotalExpense').textContent = formatCurrency(mData.total_expense);
+  document.getElementById('fcTotalCard').textContent = formatCurrency(mData.credit_card_invoices_total);
+
+  const netBalEl = document.getElementById('fcNetBalance');
+  netBalEl.textContent = formatCurrency(mData.net_balance);
+  netBalEl.style.color = mData.net_balance >= 0 ? 'var(--success-color)' : 'var(--error-color)';
+
+  document.getElementById('checklistTitle').textContent = `📋 Checklist do Mês: ${mData.month}`;
+
+  // Render Checklist Table
+  const tbody = document.getElementById('forecastTableBody');
+  tbody.innerHTML = '';
+
+  if (!mData.checklist_items || mData.checklist_items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7">Nenhuma transação recorrente prevista para este mês. Cadastre novas regras abaixo!</td></tr>';
     return;
   }
 
-  if (!confirm(`Deseja alterar o status da parceria para ${newStatus}?`)) return;
-  const res = await apiCall(`/partnerships/${id}`, 'PATCH', { status: newStatus });
-  if (res.ok) {
-    alert('Status da parceria atualizado com sucesso!');
-    loadActivePartnership();
-  } else {
-    alert('Erro ao atualizar parceria.');
-  }
-}
+  mData.checklist_items.forEach(item => {
+    const tr = document.createElement('tr');
+    const isIncome = item.type === 'INCOME';
+    const typeLabel = isIncome ? 'Receita (Entrada)' : 'Despesa (Saída)';
+    const amountColor = isIncome ? 'color: var(--success-color);' : 'color: var(--error-color);';
+    const isFulfilled = item.status === 'REALIZADO';
 
-// --- SETTLEMENTS (ACERTOS) HANDLERS ---
-async function loadNetBalance() {
-  const month = document.getElementById('settlementMonth').value;
-  const resultDiv = document.getElementById('netBalanceResult');
-  if (!month) {
-    alert('Selecione o mês para consultar.');
-    return;
-  }
+    const statusBadge = isFulfilled
+      ? '<span class="badge logged-in">✅ REALIZADO</span>'
+      : '<span class="badge logged-out" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">⏳ PREVISTO</span>';
 
-  resultDiv.innerHTML = '<p>Calculando saldo líquido com parceiro...</p>';
-  const res = await apiCall(`/settlements/net-balance?month=${month}`, 'GET');
+    const overrideNotice = item.is_overridden ? ' <small style="color:#d9534f;">(Valor alterado no mês)</small>' : '';
 
-  if (res.ok && res.data) {
-    const nb = res.data;
-    document.getElementById('spMonth').value = month;
-    if (nb.net_balance !== undefined) {
-      document.getElementById('spAmount').value = Math.abs(nb.net_balance);
-    }
-
-    let statusMsg = '';
-    if (nb.net_balance > 0) {
-      statusMsg = `<p style="color: var(--success-color); font-weight: bold;">Você tem a RECEBER: ${formatCurrency(nb.net_balance)}</p>`;
-    } else if (nb.net_balance < 0) {
-      statusMsg = `<p style="color: var(--error-color); font-weight: bold;">Você tem a PAGAR: ${formatCurrency(Math.abs(nb.net_balance))}</p>`;
+    let actionButtons = '';
+    if (isFulfilled) {
+      actionButtons = `<small style="color:#28a745;">Quitado no extrato</small>`;
     } else {
-      statusMsg = `<p>Contas equilibradas! Saldo zerado (R$ 0,00).</p>`;
+      actionButtons = `
+        <button onclick="fulfillChecklistItem('${item.recurring_transaction_id}', '${mData.month}')" class="btn-sm btn-success">✅ Dar Baixa</button>
+        <button onclick="overrideChecklistItem('${item.recurring_transaction_id}', '${mData.month}', ${item.amount})" class="btn-sm">✏️ Editar no Mês</button>
+      `;
     }
 
-    resultDiv.innerHTML = `
-      <h4>Mês de Referência: ${month}</h4>
-      ${statusMsg}
-      <div class="mt-10" style="font-size: 0.85rem;">
-        <p><strong>Seus gastos compartilhados:</strong> ${formatCurrency(nb.user_total_spent || 0)}</p>
-        <p><strong>Gastos do parceiro:</strong> ${formatCurrency(nb.partner_total_spent || 0)}</p>
-        <p><strong>Status do Acerto:</strong> ${nb.status || 'N/A'}</p>
-      </div>
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(item.description)}</strong>${overrideNotice}</td>
+      <td>${typeLabel}</td>
+      <td>Dia ${item.due_day}</td>
+      <td style="${amountColor}"><strong>${formatCurrency(item.amount)}</strong></td>
+      <td>${formatCategory(item.category)}</td>
+      <td>${statusBadge}</td>
+      <td>${actionButtons}</td>
     `;
-  } else {
-    resultDiv.innerHTML = '<p class="text-error">Erro ao consultar saldo líquido. Verifique se existe parceria ativa.</p>';
-  }
+    tbody.appendChild(tr);
+  });
 }
 
-async function handlePaySettlement(e) {
-  e.preventDefault();
-  const body = {
-    month: document.getElementById('spMonth').value,
-    amount: parseFloat(document.getElementById('spAmount').value),
-    settlement_account_id: document.getElementById('spAccount').value
-  };
+async function fulfillChecklistItem(recId, month) {
+  if (!confirm(`Deseja confirmar o pagamento/recebimento deste item para o mês ${month}? Uma transação real será gravada no extrato.`)) return;
 
-  const res = await apiCall('/settlements/pay', 'POST', body);
+  const res = await apiCall(`/recurring-transactions/${recId}/fulfill`, 'POST', { reference_month: month });
   if (res.ok) {
-    alert('Acerto quitado/liquidado com sucesso!');
-    loadNetBalance();
-    loadAccounts();
+    alert('Item baixado com sucesso! A transação foi gravada no extrato.');
+    loadForecast(globalForecastResponse ? globalForecastResponse.start_month : '');
+    loadAccounts(); // Refresh balance
   } else {
-    alert('Erro ao liquidar acerto.');
+    alert('Erro ao dar baixa no item.');
   }
 }
 
-// --- RECURRING TRANSACTIONS HANDLERS ---
-async function loadRecurringTransactions() {
+async function overrideChecklistItem(recId, currentMonth, currentAmount) {
+  const newAmountStr = prompt(`Informe o novo valor específico para o mês ${currentMonth}:`, currentAmount);
+  if (!newAmountStr) return;
+  const newAmount = parseFloat(newAmountStr);
+  if (isNaN(newAmount) || newAmount <= 0) {
+    alert('Valor inválido!');
+    return;
+  }
+
+  const res = await apiCall(`/recurring-transactions/${recId}/override`, 'PUT', { reference_month: currentMonth, override_amount: newAmount });
+  if (res.ok) {
+    alert(`Valor do mês ${currentMonth} atualizado para ${formatCurrency(newAmount)}!`);
+    loadForecast(globalForecastResponse ? globalForecastResponse.start_month : '');
+  } else {
+    alert('Erro ao atualizar valor do mês.');
+  }
+}
+
+async function loadRecurringMasterList() {
   const res = await apiCall('/recurring-transactions', 'GET');
-  const tbody = document.getElementById('recurringTableBody');
+  const tbody = document.getElementById('recurringMasterTableBody');
   tbody.innerHTML = '';
 
   if (res.ok && Array.isArray(res.data)) {
     if (res.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7">Nenhuma transação recorrente cadastrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">Nenhuma regra recorrente cadastrada.</td></tr>';
       return;
     }
 
@@ -788,22 +774,20 @@ async function loadRecurringTransactions() {
       const tr = document.createElement('tr');
       const isExpense = rec.type === 'EXPENSE';
       const typeLabel = isExpense ? 'Despesa Fixa' : 'Salário / Receita';
-      const targetAccId = rec.account_id || rec.target_account_id;
       tr.innerHTML = `
         <td><strong>${escapeHtml(rec.description)}</strong></td>
         <td>${typeLabel}</td>
         <td>${formatCurrency(rec.amount)}</td>
-        <td>Dia ${rec.due_day || rec.execution_day}</td>
+        <td>Dia ${rec.due_day}</td>
         <td>${formatCategory(rec.category)}</td>
-        <td>${getAccountName(targetAccId)}</td>
         <td>
-          <button onclick="deleteRecurringTransaction('${rec.id}')" class="btn-sm btn-danger">Excluir</button>
+          <button onclick="deleteRecurringTransaction('${rec.id}')" class="btn-sm btn-danger">Excluir Regra</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = '<tr><td colspan="7">Erro ao carregar transações recorrentes.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Erro ao carregar regras recorrentes.</td></tr>';
   }
 }
 
@@ -820,23 +804,25 @@ async function handleRecurringSubmit(e) {
 
   const res = await apiCall('/recurring-transactions', 'POST', body);
   if (res.ok) {
-    alert('Transação recorrente cadastrada!');
+    alert('Regra recorrente cadastrada com sucesso!');
     document.getElementById('recDescription').value = '';
     document.getElementById('recAmount').value = '';
-    loadRecurringTransactions();
+    loadForecast();
+    loadRecurringMasterList();
   } else {
-    alert('Erro ao cadastrar transação recorrente.');
+    alert('Erro ao cadastrar regra recorrente.');
   }
 }
 
 async function deleteRecurringTransaction(id) {
-  if (!confirm('Deseja cancelar esta transação recorrente?')) return;
+  if (!confirm('Deseja cancelar esta regra recorrente para todos os meses futuros?')) return;
   const res = await apiCall(`/recurring-transactions/${id}`, 'DELETE');
   if (res.ok) {
-    alert('Recorrente removida.');
-    loadRecurringTransactions();
+    alert('Regra recorrente desativada.');
+    loadForecast();
+    loadRecurringMasterList();
   } else {
-    alert('Erro ao remover recorrente.');
+    alert('Erro ao remover regra recorrente.');
   }
 }
 
@@ -884,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
   populateCategorySelects();
 
   // Auto-format phone input fields on blur/change
-  const phoneInputs = ['loginPhone', 'regPhone', 'invitePhone'];
+  const phoneInputs = ['loginPhone', 'regPhone'];
   phoneInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -898,8 +884,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   const monthStr = now.toISOString().slice(0, 7);
   if (document.getElementById('filterMonth')) document.getElementById('filterMonth').value = monthStr;
-  if (document.getElementById('settlementMonth')) document.getElementById('settlementMonth').value = monthStr;
-  if (document.getElementById('spMonth')) document.getElementById('spMonth').value = monthStr;
   if (document.getElementById('txDate')) {
     const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     document.getElementById('txDate').value = localNow;
@@ -910,15 +894,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (document.getElementById('cpDate')) {
     document.getElementById('cpDate').value = now.toISOString().slice(0, 10);
-  }
-
-  // Split checkbox listener
-  const txSharedCheck = document.getElementById('txShared');
-  if (txSharedCheck) {
-    txSharedCheck.addEventListener('change', (e) => {
-      const splitGroup = document.getElementById('txSplitPercentageGroup');
-      if (splitGroup) splitGroup.style.display = e.target.checked ? 'block' : 'none';
-    });
   }
 
   // Load initial accounts if token exists

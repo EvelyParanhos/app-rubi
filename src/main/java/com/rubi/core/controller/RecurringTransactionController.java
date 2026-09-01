@@ -1,10 +1,11 @@
 package com.rubi.core.controller;
 
 import com.rubi.api.RecurringTransactionsApi;
+import com.rubi.core.domain.Category;
 import com.rubi.core.domain.RecurringTransaction;
+import com.rubi.core.domain.Transaction;
 import com.rubi.core.service.RecurringTransactionService;
-import com.rubi.model.RecurringTransactionCreateRequest;
-import com.rubi.model.RecurringTransactionResponse;
+import com.rubi.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,12 +14,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import com.rubi.core.domain.Category;
-import com.rubi.model.CategoryEnum;
 
 @RestController
 @RequiredArgsConstructor
@@ -73,6 +72,60 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responseList);
+    }
+
+    @Override
+    public ResponseEntity<TransactionResponse> fulfillRecurringTransaction(UUID id, FulfillRecurringRequest request) {
+        UUID currentUserId = getCurrentUserId();
+
+        BigDecimal customAmt = request.getAmount() != null ? BigDecimal.valueOf(request.getAmount()) : null;
+
+        Transaction tx = recurringTransactionService.fulfillRecurring(
+                id,
+                currentUserId,
+                request.getReferenceMonth(),
+                request.getAccountId(),
+                customAmt,
+                request.getExecutionDate()
+        );
+
+        CategoryEnum catEnum = null;
+        if (tx.getCategory() != null) {
+            try {
+                catEnum = CategoryEnum.fromValue(tx.getCategory().name());
+            } catch (Exception e) {
+                catEnum = CategoryEnum.UNCATEGORIZED;
+            }
+        }
+
+        TransactionResponse txResponse = new TransactionResponse()
+                .id(tx.getId())
+                .accountId(tx.getAccount().getId())
+                .accountName(tx.getAccount() != null ? tx.getAccount().getName() : null)
+                .amount(tx.getAmount().doubleValue())
+                .type(tx.getType().name())
+                .description(tx.getDescription())
+                .category(catEnum)
+                .referenceDate(tx.getReferenceDate() != null ? tx.getReferenceDate().atOffset(ZoneOffset.UTC) : null);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(txResponse);
+    }
+
+    @Override
+    public ResponseEntity<Void> overrideRecurringTransaction(UUID id, OverrideRecurringRequest request) {
+        UUID currentUserId = getCurrentUserId();
+
+        BigDecimal overrideAmt = BigDecimal.valueOf(request.getOverrideAmount());
+
+        recurringTransactionService.overrideRecurring(
+                id,
+                currentUserId,
+                request.getReferenceMonth(),
+                overrideAmt,
+                request.getOverrideDueDay()
+        );
+
+        return ResponseEntity.ok().build();
     }
 
     @Override

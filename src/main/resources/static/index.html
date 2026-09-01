@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rubi - Protótipo de Baixa Fidelidade</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.0.6">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.8">
 </head>
 <body>
   <div class="container">
@@ -12,7 +12,7 @@
     <header>
       <div>
         <h1>💎 Rubi - Protótipo de Baixa Fidelidade</h1>
-        <small>Interface de Teste & Prototipação Rápida da API Rubi (v1.0.6)</small>
+        <small>Interface Individual & Previsão Financeira de 12 Meses (v1.0.8)</small>
       </div>
       <div class="user-status">
         <span id="authStatusBadge" class="badge logged-out">Desconectado</span>
@@ -27,9 +27,7 @@
       <button class="tab-btn" onclick="switchTab('accounts')">💳 Contas</button>
       <button class="tab-btn" onclick="switchTab('transactions')">💸 Transações / Extrato</button>
       <button class="tab-btn" onclick="switchTab('cards')">💳 Cartões & Faturas</button>
-      <button class="tab-btn" onclick="switchTab('partnership')">🤝 Parceria</button>
-      <button class="tab-btn" onclick="switchTab('settlements')">⚖️ Acertos (Settlements)</button>
-      <button class="tab-btn" onclick="switchTab('recurring')">🔄 Recorrentes</button>
+      <button class="tab-btn" onclick="switchTab('forecast')">🔮 Previsão & Recorrentes (12 Meses)</button>
     </nav>
 
     <!-- Main Content Panels -->
@@ -134,11 +132,6 @@
                 <label for="accCurrency">Moeda</label>
                 <input type="text" id="accCurrency" value="BRL" required>
               </div>
-              <div class="form-group">
-                <label>
-                  <input type="checkbox" id="accIsJoint"> Conta Conjunta (Compartilhada)?
-                </label>
-              </div>
               <button type="submit" id="accSubmitBtn" class="btn-success">Salvar Conta</button>
               <button type="button" onclick="resetAccountForm()" class="btn-sm" style="display:none;" id="accCancelBtn">Cancelar Edição</button>
             </form>
@@ -154,12 +147,11 @@
                   <th>Tipo</th>
                   <th>Saldo</th>
                   <th>Moeda</th>
-                  <th>Conjunta?</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="accountsTableBody">
-                <tr><td colspan="6">Carregando contas...</td></tr>
+                <tr><td colspan="5">Carregando contas...</td></tr>
               </tbody>
             </table>
           </div>
@@ -229,15 +221,6 @@
                 <label for="txDate">Data e Hora</label>
                 <input type="datetime-local" id="txDate" required>
               </div>
-              <div class="form-group">
-                <label>
-                  <input type="checkbox" id="txShared"> Dividir Despesa com Parceiro?
-                </label>
-              </div>
-              <div class="form-group" id="txSplitPercentageGroup" style="display:none;">
-                <label for="txSplitPercentage">% da Minha Parte (Ex: 50)</label>
-                <input type="number" id="txSplitPercentage" placeholder="50" value="50">
-              </div>
               <button type="submit" id="txSubmitBtn" class="btn-success">Registrar Transação</button>
             </form>
           </div>
@@ -283,12 +266,11 @@
                 <th>Valor</th>
                 <th>Categoria</th>
                 <th>Conta</th>
-                <th>Compartilhada?</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody id="transactionsTableBody">
-              <tr><td colspan="8">Selecione os filtros ou clique em "Filtrar Extrato".</td></tr>
+              <tr><td colspan="7">Selecione os filtros ou clique em "Filtrar Extrato".</td></tr>
             </tbody>
           </table>
         </div>
@@ -407,148 +389,126 @@
         </div>
       </div>
 
-      <!-- ABA 5: PARCERIA -->
-      <div id="tab-partnership" class="tab-pane">
-        <h2>Gestão de Parceria (Finanças em Casal)</h2>
-        <div class="section-grid mt-15">
-          <!-- Status Atual -->
-          <div class="card">
-            <div class="flex-between">
-              <h3>Status da Parceria</h3>
-              <button onclick="loadActivePartnership()" class="btn-sm">🔄 Checar Status</button>
-            </div>
-            <div id="partnershipStatusContent" class="mt-10">
-              <p>Carregando status da parceria...</p>
-            </div>
-          </div>
-
-          <!-- Convidar Parceiro -->
-          <div class="card">
-            <h3>Convidar Parceiro(a)</h3>
-            <form id="invitePartnerForm" onsubmit="handleInvitePartner(event)">
-              <div class="form-group">
-                <label for="invitePhone">Telefone do Parceiro (Ex: 11977777777 ou +5511977777777)</label>
-                <input type="text" id="invitePhone" placeholder="+5511977777777" required>
-              </div>
-              <button type="submit" class="btn-success">Enviar Convite de Parceria</button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- ABA 6: ACERTOS (SETTLEMENTS) -->
-      <div id="tab-settlements" class="tab-pane">
-        <h2>Acertos de Contas (Net Balance)</h2>
-        <p><small>Calcule quem deve a quem no mês com base nos gastos compartilhados e acerte o valor líquido.</small></p>
-        
-        <div class="card mt-15 mb-10">
-          <h3>Consultar Saldo Líquido do Mês</h3>
-          <div class="form-inline">
-            <div class="form-group">
-              <label for="settlementMonth">Mês (YYYY-MM)</label>
-              <input type="month" id="settlementMonth">
-            </div>
-            <div>
-              <button onclick="loadNetBalance()" class="btn-success">Consultar Saldo Líquido</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-grid mt-15">
-          <!-- Resultado do Saldo Líquido -->
-          <div class="card">
-            <h3>Resumo do Saldo Líquido</h3>
-            <div id="netBalanceResult">
-              <p>Selecione o mês acima para calcular.</p>
-            </div>
-          </div>
-
-          <!-- Form de Pagamento do Acerto -->
-          <div class="card">
-            <h3>Liquidar / Pagar Acerto</h3>
-            <form id="settlementPayForm" onsubmit="handlePaySettlement(event)">
-              <div class="form-group">
-                <label for="spMonth">Mês do Acerto (YYYY-MM)</label>
-                <input type="month" id="spMonth" required>
-              </div>
-              <div class="form-group">
-                <label for="spAmount">Valor a Liquidar (R$)</label>
-                <input type="number" step="0.01" id="spAmount" placeholder="0.00" required>
-              </div>
-              <div class="form-group">
-                <label for="spAccount">Conta Usada no Pagamento</label>
-                <select id="spAccount" required></select>
-              </div>
-              <button type="submit" class="btn-success">Confirmar Pagamento do Acerto</button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- ABA 7: TRANSAÇÕES RECORRENTES -->
-      <div id="tab-recurring" class="tab-pane">
+      <!-- ABA 5: PREVISÃO & RECORRENTES (12 MESES) -->
+      <div id="tab-forecast" class="tab-pane">
         <div class="flex-between">
-          <h2>Transações Recorrentes (Salários e Despesas Fixas)</h2>
-          <button onclick="loadRecurringTransactions()" class="btn-sm">🔄 Atualizar Recorrentes</button>
+          <h2>🔮 Previsão Financeira & Checklist Mensal (12 Meses)</h2>
+          <button onclick="loadForecast()" class="btn-sm">🔄 Recarregar Previsão</button>
         </div>
 
+        <!-- Seletor de Meses da Previsão -->
+        <div class="card mt-15">
+          <h3>Selecione o Mês da Previsão</h3>
+          <div id="monthSelectorContainer" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+            <!-- Rendered by JS: 12 month buttons -->
+          </div>
+        </div>
+
+        <!-- Metric Cards do Mês Selecionado -->
+        <div class="section-grid mt-15" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="card" style="border-left: 4px solid var(--success-color);">
+            <small style="color: #666;">(+) Receitas Previstas</small>
+            <h3 id="fcTotalIncome" style="color: var(--success-color); margin-top: 4px;">R$ 0,00</h3>
+          </div>
+          <div class="card" style="border-left: 4px solid var(--error-color);">
+            <small style="color: #666;">(-) Despesas Previstas</small>
+            <h3 id="fcTotalExpense" style="color: var(--error-color); margin-top: 4px;">R$ 0,00</h3>
+          </div>
+          <div class="card" style="border-left: 4px solid #f39c12;">
+            <small style="color: #666;">(-) Faturas de Cartão</small>
+            <h3 id="fcTotalCard" style="color: #f39c12; margin-top: 4px;">R$ 0,00</h3>
+          </div>
+          <div class="card" style="border-left: 4px solid var(--primary-color);">
+            <small style="color: #666;">(=) Resultado do Mês</small>
+            <h3 id="fcNetBalance" style="margin-top: 4px;">R$ 0,00</h3>
+          </div>
+        </div>
+
+        <!-- Tabela do Checklist Mensal -->
+        <div class="card mt-15">
+          <h3 id="checklistTitle">📋 Checklist do Mês</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Dia Venc.</th>
+                <th>Valor Previsto</th>
+                <th>Categoria</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="forecastTableBody">
+              <tr><td colspan="7">Carregando previsão financeira...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Form Cadastrar Nova Recorrente -->
         <div class="section-grid mt-15">
-          <!-- Form Recorrente -->
-          <div class="card">
-            <h3>Nova Transação Recorrente</h3>
+          <div class="card" style="grid-column: span 2;">
+            <h3>➕ Cadastrar Regra Recorrente (Salário ou Despesa Fixa)</h3>
             <form id="recurringForm" onsubmit="handleRecurringSubmit(event)">
-              <div class="form-group">
-                <label for="recType">Tipo</label>
-                <select id="recType" required>
-                  <option value="INCOME">Salário / Receita Fixa (Entrada)</option>
-                  <option value="EXPENSE">Aluguel / Despesa Fixa (Saída)</option>
-                </select>
+              <div class="form-inline">
+                <div class="form-group">
+                  <label for="recDescription">Descrição</label>
+                  <input type="text" id="recDescription" placeholder="Ex: Salário, Aluguel" required>
+                </div>
+                <div class="form-group">
+                  <label for="recType">Tipo</label>
+                  <select id="recType" required>
+                    <option value="INCOME">Salário / Entrada (INCOME)</option>
+                    <option value="EXPENSE">Despesa Fixa / Saída (EXPENSE)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="recAmount">Valor Mensal (R$)</label>
+                  <input type="number" step="0.01" id="recAmount" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                  <label for="recDueDay">Dia Venc. (1-28)</label>
+                  <input type="number" min="1" max="28" id="recDueDay" value="5" required>
+                </div>
+                <div class="form-group">
+                  <label for="recCategory">Categoria</label>
+                  <select id="recCategory" required></select>
+                </div>
+                <div class="form-group">
+                  <label for="recAccount">Conta Vinculada</label>
+                  <select id="recAccount" required></select>
+                </div>
+                <div style="align-self: flex-end;">
+                  <button type="submit" class="btn-success">Cadastrar Recorrente</button>
+                </div>
               </div>
-              <div class="form-group">
-                <label for="recAmount">Valor (R$)</label>
-                <input type="number" step="0.01" id="recAmount" placeholder="0.00" required>
-              </div>
-              <div class="form-group">
-                <label for="recDescription">Descrição</label>
-                <input type="text" id="recDescription" placeholder="Ex: Salário Mensal, Aluguel" required>
-              </div>
-              <div class="form-group">
-                <label for="recCategory">Categoria</label>
-                <select id="recCategory" required></select>
-              </div>
-              <div class="form-group">
-                <label for="recDueDay">Dia de Vencimento/Execução no Mês (1-28)</label>
-                <input type="number" min="1" max="28" id="recDueDay" value="5" required>
-              </div>
-              <div class="form-group">
-                <label for="recAccount">Conta Vinculada</label>
-                <select id="recAccount" required></select>
-              </div>
-              <button type="submit" class="btn-success">Cadastrar Recorrente</button>
             </form>
           </div>
-
-          <!-- Tabela de Recorrentes -->
-          <div class="card" style="grid-column: span 2;">
-            <h3>Lista de Recorrentes</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Descrição</th>
-                  <th>Tipo</th>
-                  <th>Valor</th>
-                  <th>Dia Mês</th>
-                  <th>Categoria</th>
-                  <th>Conta</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody id="recurringTableBody">
-                <tr><td colspan="7">Carregando recorrentes...</td></tr>
-              </tbody>
-            </table>
-          </div>
         </div>
+
+        <!-- Gerenciamento de Regras Recorrentes MESTRE -->
+        <div class="card mt-15">
+          <div class="flex-between">
+            <h3>⚙️ Regras Recorrentes Cadastradas (Master)</h3>
+            <button onclick="loadRecurringMasterList()" class="btn-sm">🔄 Atualizar Mestre</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Valor Base</th>
+                <th>Dia Venc.</th>
+                <th>Categoria</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="recurringMasterTableBody">
+              <tr><td colspan="6">Clique em "Atualizar Mestre" para carregar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
     </div>
@@ -560,12 +520,12 @@
         <button onclick="clearLogs()" class="btn-sm" style="padding: 2px 6px; font-size: 0.7rem;">Limpar Logs</button>
       </h4>
       <div id="logContent">
-        <div class="log-entry info">Sistema iniciado (v1.0.6). Faça login ou registre-se para testar os endpoints da API Rubi.</div>
+        <div class="log-entry info">Sistema iniciado (v1.0.8). Previsão de 12 Meses & Checklist Ativado.</div>
       </div>
     </div>
 
   </div>
 
-  <script src="/js/app.js?v=1.0.6"></script>
+  <script src="/js/app.js?v=1.0.8"></script>
 </body>
 </html>

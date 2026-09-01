@@ -62,7 +62,6 @@ public class TelegramSessionService {
                 session.getUserId(),
                 "Conta Corrente Base",
                 "CHECKING",
-                false,
                 BigDecimal.ZERO
         );
 

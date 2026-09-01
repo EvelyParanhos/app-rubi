@@ -38,7 +38,6 @@ public class AccountController implements AccountsApi {
                 ownerId,
                 accountCreateRequest.getName(),
                 accountCreateRequest.getType().name(),
-                accountCreateRequest.getIsJoint(),
                 initialBalance
         );
 
@@ -60,7 +59,6 @@ public class AccountController implements AccountsApi {
                             .id(a.getId())
                             .name(a.getName())
                             .type(a.getType().name())
-                            .isJoint(a.getIsJoint())
                             .balance(bal != null ? bal.doubleValue() : 0.0);
                 })
                 .collect(Collectors.toList());
@@ -80,7 +78,6 @@ public class AccountController implements AccountsApi {
 
         account.setName(accountCreateRequest.getName());
         account.setType(AccountType.valueOf(accountCreateRequest.getType().name()));
-        account.setIsJoint(accountCreateRequest.getIsJoint());
 
         accountRepository.save(account);
         return ResponseEntity.ok().build();

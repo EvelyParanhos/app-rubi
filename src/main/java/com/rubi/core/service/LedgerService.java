@@ -21,7 +21,7 @@ public class LedgerService {
     private final UserRepository userRepository;
 
     @Transactional
-    public Account createAccount(UUID ownerId, String name, String type, boolean isJoint, BigDecimal initialBalance) {
+    public Account createAccount(UUID ownerId, String name, String type, BigDecimal initialBalance) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
 
@@ -32,7 +32,6 @@ public class LedgerService {
                 .custodianId(ownerId)
                 .name(name)
                 .type(accountType)
-                .isJoint(isJoint)
                 .isActive(true)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -56,8 +55,8 @@ public class LedgerService {
         return savedAccount;
     }
 
-    public Account createAccount(UUID ownerId, String name, String type, boolean isJoint) {
-        return createAccount(ownerId, name, type, isJoint, BigDecimal.ZERO);
+    public Account createAccount(UUID ownerId, String name, String type) {
+        return createAccount(ownerId, name, type, BigDecimal.ZERO);
     }
 
     public BigDecimal getAccountBalance(UUID accountId) {
@@ -75,15 +74,6 @@ public class LedgerService {
 
         Account targetAccount = accountRepository.findById(targetAccountId)
                 .orElseThrow(() -> new IllegalArgumentException("Target account not found"));
-
-        // Proteção de Autoempréstimo (RN07 / Épico 5.5): A devolução exige a mesma custódia de origem
-        if (description != null && (description.toLowerCase().contains("autoempréstimo") || description.toLowerCase().contains("amortização") || description.toLowerCase().contains("devolução"))) {
-            UUID sourceCustodian = sourceAccount.getCustodianId() != null ? sourceAccount.getCustodianId() : sourceAccount.getOwner().getId();
-            UUID targetCustodian = targetAccount.getCustodianId() != null ? targetAccount.getCustodianId() : targetAccount.getOwner().getId();
-            if (!sourceCustodian.equals(targetCustodian)) {
-                throw new IllegalArgumentException("RN07: A devolução de autoempréstimo exige que a conta de destino pertença ao mesmo titular de origem.");
-            }
-        }
 
         Transaction debitTransaction = Transaction.builder()
                 .account(sourceAccount)

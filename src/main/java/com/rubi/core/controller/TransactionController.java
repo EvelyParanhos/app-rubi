@@ -4,8 +4,6 @@ import com.rubi.api.TransactionsApi;
 import com.rubi.core.domain.Transaction;
 import com.rubi.core.repository.TransactionRepository;
 import com.rubi.core.service.LedgerService;
-import com.rubi.core.service.SettlementService;
-import com.rubi.model.TransactionSplitRequest;
 import com.rubi.model.TransferRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,7 +26,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.rubi.core.repository.TransactionSplitRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 @RestController
@@ -36,9 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TransactionController implements TransactionsApi {
 
     private final LedgerService ledgerService;
-    private final SettlementService settlementService;
     private final TransactionRepository transactionRepository;
-    private final TransactionSplitRepository transactionSplitRepository;
 
     @Override
     public ResponseEntity<TransactionResponse> createTransaction(TransactionCreateRequest request) {
@@ -95,21 +90,6 @@ public class TransactionController implements TransactionsApi {
     }
 
     @Override
-    public ResponseEntity<Void> splitTransaction(UUID id, TransactionSplitRequest transactionSplitRequest) {
-        UUID currentUserId = getCurrentUserId();
-
-        settlementService.createSplit(
-                id,
-                currentUserId,
-                transactionSplitRequest.getDebtorId(),
-                BigDecimal.valueOf(transactionSplitRequest.getAmount()),
-                transactionSplitRequest.getReferenceMonth()
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @Override
     @Transactional
     public ResponseEntity<TransactionResponse> updateTransaction(UUID id, TransactionCreateRequest request) {
         UUID currentUserId = getCurrentUserId();
@@ -145,7 +125,6 @@ public class TransactionController implements TransactionsApi {
             throw new SecurityException("Forbidden: Transaction does not belong to current user");
         }
 
-        transactionSplitRepository.deleteByTransactionId(id);
         transactionRepository.delete(transaction);
         return ResponseEntity.noContent().build();
     }
