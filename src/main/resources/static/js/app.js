@@ -1,4 +1,4 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.5) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.6) */
 
 function getApiBase() {
   if (window.location.protocol === 'file:') {
@@ -563,12 +563,15 @@ async function handleCardPurchaseSubmit(e) {
     return;
   }
 
+  const cpDateVal = document.getElementById('cpDate').value;
+  const purchaseDateIso = cpDateVal ? new Date(cpDateVal + 'T12:00:00').toISOString() : new Date().toISOString();
+
   const body = {
     amount: parseFloat(document.getElementById('cpAmount').value),
     description: document.getElementById('cpDescription').value.trim(),
     category: document.getElementById('cpCategory').value,
     installments: parseInt(document.getElementById('cpInstallments').value),
-    purchase_date: document.getElementById('cpDate').value
+    purchase_date: purchaseDateIso
   };
 
   const res = await apiCall(`/credit-cards/${cardId}/purchases`, 'POST', body);
@@ -578,7 +581,8 @@ async function handleCardPurchaseSubmit(e) {
     document.getElementById('cpDescription').value = '';
     loadCardInvoices();
   } else {
-    alert('Erro ao gravar compra no cartão.');
+    const detail = res.data && res.data.error ? res.data.error : '';
+    alert(`Erro ao gravar compra no cartão (${res.status}): ${detail}`);
   }
 }
 
