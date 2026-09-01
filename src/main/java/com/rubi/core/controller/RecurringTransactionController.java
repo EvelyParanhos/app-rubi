@@ -43,6 +43,7 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
 
         RecurringTransactionResponse response = new RecurringTransactionResponse()
                 .id(rec.getId())
+                .accountId(rec.getAccount() != null ? rec.getAccount().getId() : null)
                 .description(rec.getDescription())
                 .amount(rec.getAmount().doubleValue())
                 .type(rec.getType().name())
@@ -62,6 +63,7 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
                     CategoryEnum catEnum = r.getCategory() != null ? CategoryEnum.fromValue(r.getCategory().name()) : CategoryEnum.UNCATEGORIZED;
                     return new RecurringTransactionResponse()
                             .id(r.getId())
+                            .accountId(r.getAccount() != null ? r.getAccount().getId() : null)
                             .description(r.getDescription())
                             .amount(r.getAmount().doubleValue())
                             .type(r.getType().name())

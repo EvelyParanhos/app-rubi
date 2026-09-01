@@ -31,12 +31,18 @@ public class PartnershipController implements PartnershipsApi {
     public ResponseEntity<PartnershipActiveResponse> getActivePartnership() {
         UUID currentUserId = getCurrentUserId();
         Optional<Partnership> activeOpt = partnershipRepository.findActivePartnership(currentUserId, PartnershipStatus.ACTIVE);
+        if (activeOpt.isEmpty()) {
+            activeOpt = partnershipRepository.findActivePartnership(currentUserId, PartnershipStatus.PENDING);
+        }
 
         if (activeOpt.isPresent()) {
             Partnership partnership = activeOpt.get();
             User partner = partnership.getUser1().getId().equals(currentUserId) ? partnership.getUser2() : partnership.getUser1();
+            boolean isActive = partnership.getStatus() == PartnershipStatus.ACTIVE;
             PartnershipActiveResponse response = new PartnershipActiveResponse()
-                    .hasActivePartnership(true)
+                    .hasActivePartnership(isActive)
+                    .id(partnership.getId())
+                    .status(partnership.getStatus().name())
                     .partnerId(partner.getId())
                     .partnerName(partner.getName());
             return ResponseEntity.ok(response);

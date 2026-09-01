@@ -14,7 +14,7 @@ import java.util.List;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
-    @Query("SELECT COALESCE(SUM(CASE WHEN t.type = com.rubi.core.domain.TransactionType.CREDIT THEN t.amount ELSE -t.amount END), 0) FROM Transaction t WHERE t.account.id = :accountId")
+    @Query("SELECT COALESCE(SUM(CASE WHEN t.type = com.rubi.core.domain.TransactionType.CREDIT OR t.type = com.rubi.core.domain.TransactionType.OPENING_BALANCE THEN t.amount ELSE -t.amount END), 0) FROM Transaction t WHERE t.account.id = :accountId")
     BigDecimal calculateBalance(@Param("accountId") UUID accountId);
 
     @Query("SELECT COALESCE(SUM(CASE WHEN t.type = com.rubi.core.domain.TransactionType.DEBIT THEN t.amount ELSE -t.amount END), 0) FROM Transaction t WHERE t.invoice.id = :invoiceId")
