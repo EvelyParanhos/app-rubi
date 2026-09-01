@@ -69,60 +69,6 @@ paths:
       responses:
         '200':
           description: OK
-  /api/partnerships/active:
-    get:
-      tags:
-        - partnerships
-      summary: Get active partnership details for current user
-      operationId: getActivePartnership
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PartnershipActiveResponse'
-  /api/partnerships/invite:
-    post:
-      tags:
-        - partnerships
-      summary: Invite partner
-      operationId: invitePartnership
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PartnershipInviteRequest'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PartnershipInviteResponse'
-  /api/partnerships/{id}:
-    patch:
-      tags:
-        - partnerships
-      summary: Accept or terminate partnership (RESTful PATCH)
-      operationId: updatePartnershipStatus
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PartnershipStatusUpdateRequest'
-      responses:
-        '200':
-          description: OK
   /api/accounts:
     get:
       tags:
@@ -299,28 +245,6 @@ paths:
       responses:
         '204':
           description: No Content
-  /api/transactions/{id}/splits:
-    post:
-      tags:
-        - transactions
-      summary: Split a transaction with a debtor
-      operationId: splitTransaction
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TransactionSplitRequest'
-      responses:
-        '201':
-          description: Created
   /api/credit-cards:
     get:
       tags:
@@ -440,40 +364,6 @@ paths:
       responses:
         '200':
           description: OK
-  /api/settlements/net-balance:
-    get:
-      tags:
-        - settlements
-      summary: Get net balance settlement for a given month
-      operationId: getNetBalance
-      parameters:
-        - name: month
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NetBalanceResponse'
-  /api/settlements/pay:
-    post:
-      tags:
-        - settlements
-      summary: Pay/Settle net balance for a given month
-      operationId: payNetBalance
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SettlementPayRequest'
-      responses:
-        '200':
-          description: OK
   /api/recurring-transactions:
     get:
       tags:
@@ -523,6 +413,79 @@ paths:
       responses:
         '204':
           description: No Content
+  /api/forecast/monthly:
+    get:
+      tags:
+        - forecast
+      summary: Get 12-month financial forecast and monthly checklist
+      operationId: getMonthlyForecast
+      parameters:
+        - name: start_month
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 12
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyForecastResponse'
+  /api/recurring-transactions/{id}/fulfill:
+    post:
+      tags:
+        - recurring-transactions
+      summary: Fulfill/Check-off a recurring transaction for a specific month
+      operationId: fulfillRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FulfillRecurringRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+  /api/recurring-transactions/{id}/override:
+    put:
+      tags:
+        - recurring-transactions
+      summary: Override amount or due day of a recurring transaction for a specific month
+      operationId: overrideRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideRecurringRequest'
+      responses:
+        '200':
+          description: OK
   /api/webhook/telegram:
     post:
       tags:
@@ -624,60 +587,11 @@ components:
       properties:
         telegram_chat_id:
           type: string
-    PartnershipInviteRequest:
-      type: object
-      required:
-        - target_phone_number
-      properties:
-        target_phone_number:
-          type: string
-    PartnershipInviteResponse:
-      type: object
-      required:
-        - id
-        - status
-      properties:
-        id:
-          type: string
-        status:
-          type: string
-          enum:
-            - PENDING
-            - ACTIVE
-            - TERMINATED
-    PartnershipStatusUpdateRequest:
-      type: object
-      required:
-        - status
-      properties:
-        status:
-          type: string
-          enum:
-            - ACTIVE
-            - TERMINATED
-    PartnershipActiveResponse:
-      type: object
-      required:
-        - has_active_partnership
-      properties:
-        has_active_partnership:
-          type: boolean
-        partner_id:
-          type: string
-          format: uuid
-        partner_name:
-          type: string
-        id:
-          type: string
-          format: uuid
-        status:
-          type: string
     AccountCreateRequest:
       type: object
       required:
         - name
         - type
-        - is_joint
       properties:
         owner_id:
           type: string
@@ -690,8 +604,6 @@ components:
             - CHECKING
             - SAVINGS
             - LIABILITY
-        is_joint:
-          type: boolean
         initial_balance:
           type: number
           format: double
@@ -709,7 +621,6 @@ components:
         - id
         - name
         - type
-        - is_joint
       properties:
         id:
           type: string
@@ -718,8 +629,6 @@ components:
           type: string
         type:
           type: string
-        is_joint:
-          type: boolean
         balance:
           type: number
           format: double
@@ -1046,4 +955,109 @@ components:
         amount:
           type: number
           format: double
+    FulfillRecurringRequest:
+      type: object
+      required:
+        - reference_month
+      properties:
+        reference_month:
+          type: string
+        account_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        execution_date:
+          type: string
+          format: date-time
+    OverrideRecurringRequest:
+      type: object
+      required:
+        - reference_month
+        - override_amount
+      properties:
+        reference_month:
+          type: string
+        override_amount:
+          type: number
+          format: double
+        override_due_day:
+          type: integer
+    ForecastChecklistItem:
+      type: object
+      required:
+        - recurring_transaction_id
+        - description
+        - amount
+        - type
+        - due_day
+        - status
+      properties:
+        recurring_transaction_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        amount:
+          type: number
+          format: double
+        type:
+          type: string
+        due_day:
+          type: integer
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        account_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - PREVISTO
+            - REALIZADO
+        fulfilled_transaction_id:
+          type: string
+          format: uuid
+        is_overridden:
+          type: boolean
+    MonthForecastItem:
+      type: object
+      required:
+        - month
+        - total_income
+        - total_expense
+        - credit_card_invoices_total
+        - net_balance
+      properties:
+        month:
+          type: string
+        total_income:
+          type: number
+          format: double
+        total_expense:
+          type: number
+          format: double
+        credit_card_invoices_total:
+          type: number
+          format: double
+        net_balance:
+          type: number
+          format: double
+        checklist_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ForecastChecklistItem'
+    MonthlyForecastResponse:
+      type: object
+      required:
+        - start_month
+        - months
+      properties:
+        start_month:
+          type: string
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthForecastItem'
 
