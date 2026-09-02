@@ -11,8 +11,8 @@ from telegram.ext import (
 )
 from telegram.error import TimedOut, NetworkError
 
-from handlers.auth import get_auth_conversation_handler, get_main_menu_keyboard
-from handlers.onboarding import get_onboarding_conversation_handler
+from handlers.menu import get_main_menu_keyboard
+from handlers.auth import get_auth_conversation_handler
 from handlers.transaction import get_transaction_conversation_handler, handle_delete_tx, execute_delete_tx
 from handlers.card import get_card_conversation_handler
 from handlers.settlement import handle_acerto, execute_quitar_acerto
@@ -72,9 +72,8 @@ def main():
 
     app = ApplicationBuilder().token(token).request(custom_request).build()
 
-    # 1. Registrar ConversationHandlers de fluxos principais
+    # 1. Registrar ConversationHandlers de fluxos principais (Auth + Onboarding Unificados)
     app.add_handler(get_auth_conversation_handler())
-    app.add_handler(get_onboarding_conversation_handler())
     app.add_handler(get_transaction_conversation_handler())
     app.add_handler(get_card_conversation_handler())
 

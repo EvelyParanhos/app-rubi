@@ -3,7 +3,7 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 from auth_manager import require_auth, get_client
-from handlers.auth import get_main_menu_keyboard
+from handlers.menu import get_main_menu_keyboard
 from handlers.transaction import CATEGORIES
 
 logger = logging.getLogger(__name__)

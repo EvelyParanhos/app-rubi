@@ -2,8 +2,10 @@ package com.rubi.core.controller;
 
 import com.rubi.api.UsersApi;
 import com.rubi.core.domain.User;
+import com.rubi.core.service.JwtService;
 import com.rubi.core.service.UserService;
 import com.rubi.model.TelegramLinkRequest;
+import com.rubi.model.UserProfileResponse;
 import com.rubi.model.UserRegistrationRequest;
 import com.rubi.model.UserRegistrationResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +16,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
-
-import com.rubi.core.service.JwtService;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,6 +42,34 @@ public class UserController implements UsersApi {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
+    }
+
+    @Override
+    public ResponseEntity<UserProfileResponse> getProfile() {
+        UUID currentUserId = getCurrentUserId();
+        User user = userService.getUserById(currentUserId);
+
+        UserProfileResponse response = new UserProfileResponse()
+                .id(user.getId())
+                .name(user.getName())
+                .phoneNumber(user.getPhoneNumber())
+                .onboardingCompleted(user.getOnboardingCompletedAt() != null);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
+    public ResponseEntity<UserProfileResponse> completeOnboarding() {
+        UUID currentUserId = getCurrentUserId();
+        User user = userService.completeOnboarding(currentUserId);
+
+        UserProfileResponse response = new UserProfileResponse()
+                .id(user.getId())
+                .name(user.getName())
+                .phoneNumber(user.getPhoneNumber())
+                .onboardingCompleted(user.getOnboardingCompletedAt() != null);
+
+        return ResponseEntity.ok(response);
     }
 
     @Override

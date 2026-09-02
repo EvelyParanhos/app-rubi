@@ -5,6 +5,8 @@ import com.rubi.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -33,5 +35,20 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         user.setTelegramChatId(telegramChatId);
         return userRepository.save(user);
+    }
+
+    public User getUserById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    @Transactional
+    public User completeOnboarding(UUID userId) {
+        User user = getUserById(userId);
+        if (user.getOnboardingCompletedAt() == null) {
+            user.setOnboardingCompletedAt(LocalDateTime.now());
+            return userRepository.save(user);
+        }
+        return user;
     }
 }

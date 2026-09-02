@@ -32,6 +32,9 @@ public class User {
     @Column(name = "telegram_chat_id")
     private String telegramChatId;
 
+    @Column(name = "onboarding_completed_at")
+    private LocalDateTime onboardingCompletedAt;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;

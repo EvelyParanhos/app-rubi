@@ -9,7 +9,7 @@ from telegram.ext import (
     filters,
 )
 from auth_manager import require_auth, get_client
-from handlers.auth import get_main_menu_keyboard
+from handlers.menu import get_main_menu_keyboard
 
 logger = logging.getLogger(__name__)
 

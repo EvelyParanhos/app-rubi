@@ -69,6 +69,32 @@ paths:
       responses:
         '200':
           description: OK
+  /api/users/me:
+    get:
+      tags:
+        - users
+      summary: Get profile of current logged-in user with onboarding status
+      operationId: getProfile
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+  /api/users/onboarding/complete:
+    post:
+      tags:
+        - users
+      summary: Mark onboarding as completed for current user
+      operationId: completeOnboarding
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
   /api/accounts:
     get:
       tags:
@@ -653,6 +679,23 @@ components:
           type: string
         phone_number:
           type: string
+    UserProfileResponse:
+      type: object
+      required:
+        - id
+        - name
+        - phone_number
+        - onboarding_completed
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone_number:
+          type: string
+        onboarding_completed:
+          type: boolean
     TelegramLinkRequest:
       type: object
       required:
@@ -822,41 +865,6 @@ components:
           type: string
           format: uuid
         amount:
-          type: number
-          format: double
-    TransactionSplitRequest:
-      type: object
-      required:
-        - debtor_id
-        - amount
-        - reference_month
-      properties:
-        debtor_id:
-          type: string
-          format: uuid
-        amount:
-          type: number
-          format: double
-        reference_month:
-          type: string
-    NetBalanceResponse:
-      type: object
-      required:
-        - creditor_id
-        - debtor_id
-        - net_amount
-      properties:
-        creditor_id:
-          type: string
-          format: uuid
-        creditor_name:
-          type: string
-        debtor_id:
-          type: string
-          format: uuid
-        debtor_name:
-          type: string
-        net_amount:
           type: number
           format: double
     RecurringTransactionCreateRequest:

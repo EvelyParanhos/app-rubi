@@ -62,6 +62,12 @@ class RubiApiClient:
         payload = {"telegram_chat_id": str(chat_id)}
         return self._request("POST", "/users/telegram-link", payload)
 
+    def get_user_profile(self) -> dict:
+        return self._request("GET", "/users/me")
+
+    def complete_onboarding(self) -> dict:
+        return self._request("POST", "/users/onboarding/complete")
+
     def get_accounts(self) -> list:
         res = self._request("GET", "/accounts")
         return res if isinstance(res, list) else []
