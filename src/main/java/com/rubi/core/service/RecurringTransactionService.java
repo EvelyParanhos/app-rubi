@@ -25,6 +25,7 @@ public class RecurringTransactionService {
     private final CreditCardRepository creditCardRepository;
     private final LedgerService ledgerService;
     private final CreditCardService creditCardService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public RecurringTransaction createRecurringTransaction(UUID accountId, UUID creditCardId, String description, BigDecimal amount, String type, int dueDay, Category category) {
@@ -58,7 +59,12 @@ public class RecurringTransactionService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return recurringTransactionRepository.save(recurringTransaction);
+        RecurringTransaction saved = recurringTransactionRepository.save(recurringTransaction);
+
+        UUID ownerId = account != null ? account.getOwner().getId() : creditCard.getAccount().getOwner().getId();
+        auditLogService.logAction(ownerId, "RecurringTransaction", saved.getId(), "CREATE_RECURRING", "Description: " + description + ", Amount: " + amount);
+
+        return saved;
     }
 
     @Transactional
@@ -96,13 +102,15 @@ public class RecurringTransactionService {
         if (dueDay > 0) rec.setDueDay(dueDay);
         if (category != null) rec.setCategory(category);
 
-        return recurringTransactionRepository.save(rec);
+        RecurringTransaction updated = recurringTransactionRepository.save(rec);
+        auditLogService.logAction(currentUserId, "RecurringTransaction", updated.getId(), "UPDATE_MASTER_RECURRING", "Master rule updated: " + description);
+        return updated;
     }
 
     public List<RecurringTransaction> getRecurringTransactions(UUID userId) {
         List<RecurringTransaction> list = recurringTransactionRepository.findByAccountOwnerIdAndIsActiveTrue(userId);
         List<RecurringTransaction> cardList = recurringTransactionRepository.findByCreditCardAccountOwnerIdAndIsActiveTrue(userId);
-        
+
         for (RecurringTransaction cardRec : cardList) {
             if (!list.contains(cardRec)) {
                 list.add(cardRec);
@@ -138,7 +146,6 @@ public class RecurringTransactionService {
 
         Transaction tx;
         if (rec.getCreditCard() != null) {
-            // Fulfill via Credit Card purchase
             OffsetDateTime pDate = executionDate != null ? executionDate : OffsetDateTime.now(ZoneOffset.UTC);
             tx = creditCardService.processPurchase(
                     rec.getCreditCard().getId(),
@@ -149,7 +156,6 @@ public class RecurringTransactionService {
                     pDate
             );
         } else {
-            // Fulfill via direct bank transaction
             UUID accId = targetAccountId != null ? targetAccountId : rec.getAccount().getId();
             LocalDateTime refDate = executionDate != null ? executionDate.toLocalDateTime() : LocalDateTime.now();
             String txTypeStr = rec.getType() == RecurringTransactionType.INCOME ? "CREDIT" : "DEBIT";
@@ -172,6 +178,7 @@ public class RecurringTransactionService {
                 .build();
 
         recurringFulfillmentRepository.save(fulfillment);
+        auditLogService.logAction(currentUserId, "RecurringFulfillment", rec.getId(), "FULFILL_RECURRING", "Fulfilled for month " + referenceMonth + " Amount: R$ " + amt);
         return tx;
     }
 
@@ -201,6 +208,7 @@ public class RecurringTransactionService {
         }
 
         recurringOverrideRepository.save(override);
+        auditLogService.logAction(currentUserId, "RecurringOverride", rec.getId(), "OVERRIDE_RECURRING", "Overridden month " + referenceMonth + " Amount: R$ " + overrideAmount);
     }
 
     @Transactional
@@ -217,5 +225,6 @@ public class RecurringTransactionService {
 
         rec.setIsActive(false);
         recurringTransactionRepository.save(rec);
+        auditLogService.logAction(currentUserId, "RecurringTransaction", id, "DELETE_RECURRING", "Soft deleted recurring rule: " + rec.getDescription());
     }
 }

@@ -1,32 +1,27 @@
 package com.rubi.core.controller;
 
 import com.rubi.api.TransactionsApi;
+import com.rubi.core.domain.Category;
 import com.rubi.core.domain.Transaction;
 import com.rubi.core.repository.TransactionRepository;
+import com.rubi.core.service.AuditLogService;
 import com.rubi.core.service.LedgerService;
-import com.rubi.model.TransferRequest;
+import com.rubi.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
-import java.util.UUID;
-
-import com.rubi.core.domain.Category;
-import com.rubi.model.CategoryEnum;
-import com.rubi.model.TransactionCreateRequest;
-import com.rubi.model.TransactionResponse;
-
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequiredArgsConstructor
@@ -34,6 +29,7 @@ public class TransactionController implements TransactionsApi {
 
     private final LedgerService ledgerService;
     private final TransactionRepository transactionRepository;
+    private final AuditLogService auditLogService;
 
     @Override
     public ResponseEntity<TransactionResponse> createTransaction(TransactionCreateRequest request) {
@@ -48,6 +44,7 @@ public class TransactionController implements TransactionsApi {
                 request.getReferenceDate() != null ? request.getReferenceDate().toLocalDateTime() : LocalDateTime.now()
         );
 
+        auditLogService.logAction(getCurrentUserId(), "Transaction", t.getId(), "CREATE", "Created transaction: " + t.getDescription() + " R$ " + t.getAmount());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(t));
     }
 
@@ -80,12 +77,15 @@ public class TransactionController implements TransactionsApi {
 
     @Override
     public ResponseEntity<Void> transferFunds(TransferRequest transferRequest) {
+        UUID currentUserId = getCurrentUserId();
         ledgerService.transfer(
                 transferRequest.getSourceAccountId(),
                 transferRequest.getTargetAccountId(),
                 BigDecimal.valueOf(transferRequest.getAmount()),
                 transferRequest.getDescription()
         );
+
+        auditLogService.logAction(currentUserId, "Transaction", transferRequest.getSourceAccountId(), "TRANSFER", "Transfer: R$ " + transferRequest.getAmount() + " to " + transferRequest.getTargetAccountId());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -111,6 +111,7 @@ public class TransactionController implements TransactionsApi {
         }
 
         Transaction updated = transactionRepository.save(transaction);
+        auditLogService.logAction(currentUserId, "Transaction", updated.getId(), "UPDATE", "Updated transaction: " + updated.getDescription());
         return ResponseEntity.ok(toResponse(updated));
     }
 
@@ -126,6 +127,7 @@ public class TransactionController implements TransactionsApi {
         }
 
         transactionRepository.delete(transaction);
+        auditLogService.logAction(currentUserId, "Transaction", id, "DELETE", "Deleted transaction: " + transaction.getDescription() + " R$ " + transaction.getAmount());
         return ResponseEntity.noContent().build();
     }
 

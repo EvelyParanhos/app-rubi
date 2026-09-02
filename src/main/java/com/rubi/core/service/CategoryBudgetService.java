@@ -24,6 +24,7 @@ public class CategoryBudgetService {
     private final CategoryBudgetRepository categoryBudgetRepository;
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     public List<CategoryBudgetResponse> getCategoryBudgets(UUID ownerId) {
         List<CategoryBudget> budgets = categoryBudgetRepository.findByOwnerId(ownerId);
@@ -89,12 +90,15 @@ public class CategoryBudgetService {
         budget.setMonthlyGoal(monthlyGoal);
         budget.setUpdatedAt(LocalDateTime.now());
 
-        return categoryBudgetRepository.save(budget);
+        CategoryBudget saved = categoryBudgetRepository.save(budget);
+        auditLogService.logAction(ownerId, "CategoryBudget", saved.getId(), "SAVE_BUDGET", "Category: " + categoryStr + ", Limit: " + monthlyLimit + ", Goal: " + monthlyGoal);
+        return saved;
     }
 
     @Transactional
     public void deleteCategoryBudget(UUID ownerId, String categoryStr) {
         Category category = Category.valueOf(categoryStr.toUpperCase());
         categoryBudgetRepository.deleteByOwnerIdAndCategory(ownerId, category);
+        auditLogService.logAction(ownerId, "CategoryBudget", ownerId, "DELETE_BUDGET", "Category: " + categoryStr);
     }
 }
