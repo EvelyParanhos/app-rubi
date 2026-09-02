@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -30,6 +31,9 @@ public class Account {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountType type;
+
+    @Column(name = "goal_amount", precision = 19, scale = 4)
+    private BigDecimal goalAmount;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

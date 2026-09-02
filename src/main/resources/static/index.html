@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rubi - Protótipo de Baixa Fidelidade</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.1.0">
+  <link rel="stylesheet" href="/css/style.css?v=1.1.1">
 </head>
 <body>
   <div class="container">
@@ -12,7 +12,7 @@
     <header>
       <div>
         <h1>💎 Rubi - Protótipo de Baixa Fidelidade</h1>
-        <small>Interface Individual & Gestão de Tetos & Metas por Categoria (v1.1.0)</small>
+        <small>Interface Individual & Gestão de Caixinhas (`POCKET`) e Metas por Conta (v1.1.1)</small>
       </div>
       <div class="user-status">
         <span id="authStatusBadge" class="badge logged-out">Desconectado</span>
@@ -24,11 +24,11 @@
     <!-- Navigation Tabs -->
     <nav class="tabs">
       <button class="tab-btn active" onclick="switchTab('auth')">🔑 Autenticação</button>
-      <button class="tab-btn" onclick="switchTab('accounts')">💳 Contas</button>
+      <button class="tab-btn" onclick="switchTab('accounts')">💳 Contas & Caixinhas</button>
       <button class="tab-btn" onclick="switchTab('transactions')">💸 Transações / Extrato</button>
       <button class="tab-btn" onclick="switchTab('cards')">💳 Cartões & Faturas</button>
       <button class="tab-btn" onclick="switchTab('forecast')">🔮 Previsão & Recorrentes (12 Meses)</button>
-      <button class="tab-btn" onclick="switchTab('budgets')">🎯 Tetos & Metas por Categoria</button>
+      <button class="tab-btn" onclick="switchTab('budgets')">🎯 Tetos de Gastos por Categoria</button>
     </nav>
 
     <!-- Main Content Panels -->
@@ -99,55 +99,56 @@
         </div>
       </div>
 
-      <!-- ABA 2: CONTAS BANCÁRIAS -->
+      <!-- ABA 2: CONTAS & CAIXINHAS -->
       <div id="tab-accounts" class="tab-pane">
         <div class="flex-between">
-          <h2>Gerenciamento de Contas</h2>
+          <h2>Gerenciamento de Contas & Caixinhas (`POCKET`)</h2>
           <button onclick="loadAccounts()" class="btn-sm">🔄 Atualizar Lista</button>
         </div>
         
         <div class="section-grid mt-15">
           <!-- Criar / Editar Conta -->
           <div class="card">
-            <h3 id="accountFormTitle">Nova Conta</h3>
+            <h3 id="accountFormTitle">Nova Conta / Caixinha</h3>
             <form id="accountForm" onsubmit="handleAccountSubmit(event)">
               <input type="hidden" id="accountId">
               <div class="form-group">
-                <label for="accName">Nome da Conta / Banco</label>
-                <input type="text" id="accName" placeholder="Ex: Nubank Corrente, Cartão Nubank" required>
+                <label for="accName">Nome da Conta / Caixinha</label>
+                <input type="text" id="accName" placeholder="Ex: Nubank Corrente, Caixinha Reserva, Ações" required>
               </div>
               <div class="form-group">
                 <label for="accType">Tipo de Conta</label>
-                <select id="accType" required>
-                  <option value="CHECKING">CHECKING (Conta Corrente)</option>
-                  <option value="SAVINGS">SAVINGS (Conta Poupança)</option>
+                <select id="accType" onchange="toggleAccountGoalInput()" required>
+                  <option value="CHECKING">CHECKING (Conta Corrente Líquida)</option>
+                  <option value="POCKET">POCKET (Caixinha / Reserva / Investimento)</option>
                   <option value="LIABILITY">LIABILITY (Passivo / Cartão de Crédito)</option>
                 </select>
-                <small style="color: #666;">* Para cadastrar um Cartão de Crédito, a conta vinculada deve ser do tipo <strong>LIABILITY (Passivo)</strong>.</small>
+                <small style="color: #666;">* Contas <strong>POCKET (Caixinhas)</strong> são voltadas para dinheiro guardado e possuem meta mensal de aporte.</small>
               </div>
               <div class="form-group">
                 <label for="accBalance">Saldo Inicial (R$)</label>
                 <input type="number" step="0.01" id="accBalance" placeholder="0.00" value="0.00" required>
               </div>
-              <div class="form-group">
-                <label for="accCurrency">Moeda</label>
-                <input type="text" id="accCurrency" value="BRL" required>
+              <div class="form-group" id="accGoalGroup" style="display: none;">
+                <label for="accGoal">Meta Mensal de Aporte (R$)</label>
+                <input type="number" step="0.01" id="accGoal" placeholder="Ex: 500.00 (Quanto pretende guardar por mês)">
+                <small style="color: #666;">Transferências para esta Caixinha somam no progresso da meta.</small>
               </div>
-              <button type="submit" id="accSubmitBtn" class="btn-success">Salvar Conta</button>
+              <button type="submit" id="accSubmitBtn" class="btn-success">Salvar Conta / Caixinha</button>
               <button type="button" onclick="resetAccountForm()" class="btn-sm" style="display:none;" id="accCancelBtn">Cancelar Edição</button>
             </form>
           </div>
 
           <!-- Tabela de Contas -->
           <div class="card" style="grid-column: span 2;">
-            <h3>Suas Contas</h3>
+            <h3>Suas Contas & Caixinhas</h3>
             <table>
               <thead>
                 <tr>
                   <th>Nome</th>
                   <th>Tipo</th>
-                  <th>Saldo</th>
-                  <th>Moeda</th>
+                  <th>Saldo Atual</th>
+                  <th>Meta de Aporte Mensal (`POCKET`)</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -228,14 +229,14 @@
 
           <!-- Transferência Entre Contas -->
           <div class="card">
-            <h3>Transferência Entre Contas</h3>
+            <h3>Transferência Entre Contas / Aporte em Caixinha</h3>
             <form id="transferForm" onsubmit="handleTransferSubmit(event)">
               <div class="form-group">
                 <label for="trFromAccount">Conta de Origem</label>
                 <select id="trFromAccount" required></select>
               </div>
               <div class="form-group">
-                <label for="trToAccount">Conta de Destino</label>
+                <label for="trToAccount">Conta / Caixinha de Destino</label>
                 <select id="trToAccount" required></select>
               </div>
               <div class="form-group">
@@ -244,13 +245,13 @@
               </div>
               <div class="form-group">
                 <label for="trDescription">Descrição (Opcional)</label>
-                <input type="text" id="trDescription" placeholder="Ex: Transferência para Poupança">
+                <input type="text" id="trDescription" placeholder="Ex: Aporte na Caixinha Reserva">
               </div>
               <div class="form-group">
                 <label for="trDate">Data e Hora</label>
                 <input type="datetime-local" id="trDate" required>
               </div>
-              <button type="submit">Realizar Transferência</button>
+              <button type="submit">Realizar Transferência / Aporte</button>
             </form>
           </div>
         </div>
@@ -527,53 +528,47 @@
 
       </div>
 
-      <!-- ABA 6: TETOS & METAS POR CATEGORIA -->
+      <!-- ABA 6: TETOS DE GASTOS POR CATEGORIA -->
       <div id="tab-budgets" class="tab-pane">
         <div class="flex-between">
-          <h2>🎯 Tetos de Gastos & Metas por Categoria</h2>
-          <button onclick="loadCategoryBudgets()" class="btn-sm">🔄 Atualizar Tetos & Metas</button>
+          <h2>🎯 Tetos de Gastos por Categoria</h2>
+          <button onclick="loadCategoryBudgets()" class="btn-sm">🔄 Atualizar Tetos</button>
         </div>
 
         <div class="section-grid mt-15">
-          <!-- Formulário Criar / Atualizar Teto ou Meta -->
+          <!-- Formulário Criar / Atualizar Teto de Gastos -->
           <div class="card">
-            <h3>Definir Teto / Meta por Categoria</h3>
+            <h3>Definir Teto de Gastos por Categoria</h3>
             <form id="budgetForm" onsubmit="handleCategoryBudgetSubmit(event)">
               <div class="form-group">
-                <label for="bgCategory">Categoria</label>
+                <label for="bgCategory">Categoria de Despesa</label>
                 <select id="bgCategory" required></select>
               </div>
               <div class="form-group">
                 <label for="bgLimit">Teto de Gastos Mensal (R$)</label>
-                <input type="number" step="0.01" id="bgLimit" placeholder="Ex: 500.00 (Limite máximo de despesas)">
-                <small style="color: #666;">Deixe em branco se não houver teto máximo.</small>
+                <input type="number" step="0.01" id="bgLimit" placeholder="Ex: 500.00 (Limite máximo de despesas)" required>
+                <small style="color: #666;">Define o teto orçamentário máximo para despesas na categoria.</small>
               </div>
-              <div class="form-group">
-                <label for="bgGoal">Meta de Economia / Investimento Mensal (R$)</label>
-                <input type="number" step="0.01" id="bgGoal" placeholder="Ex: 1000.00 (Meta de economia)">
-                <small style="color: #666;">Deixe em branco se não for categoria de meta.</small>
-              </div>
-              <button type="submit" class="btn-success">Salvar Teto / Meta</button>
+              <button type="submit" class="btn-success">Salvar Teto de Gastos</button>
             </form>
           </div>
 
           <!-- Tabela e Progresso Visuais -->
           <div class="card" style="grid-column: span 2;">
-            <h3>Acompanhamento do Mês Vigente</h3>
+            <h3>Acompanhamento dos Tetos de Despesa do Mês Vigente</h3>
             <table>
               <thead>
                 <tr>
                   <th>Categoria</th>
                   <th>Gasto Atual</th>
                   <th>Teto Mensal</th>
-                  <th>Meta Mensal</th>
                   <th>Progresso (%)</th>
                   <th>Status</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="budgetsTableBody">
-                <tr><td colspan="7">Clique em "Atualizar Tetos & Metas" para carregar.</td></tr>
+                <tr><td colspan="6">Clique em "Atualizar Tetos" para carregar.</td></tr>
               </tbody>
             </table>
           </div>
@@ -589,12 +584,12 @@
         <button onclick="clearLogs()" class="btn-sm" style="padding: 2px 6px; font-size: 0.7rem;">Limpar Logs</button>
       </h4>
       <div id="logContent">
-        <div class="log-entry info">Sistema iniciado (v1.1.0). Tetos de Gastos & Metas por Categoria Ativados.</div>
+        <div class="log-entry info">Sistema iniciado (v1.1.1). Caixinhas (`POCKET`), Inferência em Transferências e Metas por Conta Ativados.</div>
       </div>
     </div>
 
   </div>
 
-  <script src="/js/app.js?v=1.1.0"></script>
+  <script src="/js/app.js?v=1.1.1"></script>
 </body>
 </html>

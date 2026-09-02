@@ -675,9 +675,12 @@ components:
           type: string
           enum:
             - CHECKING
-            - SAVINGS
+            - POCKET
             - LIABILITY
         initial_balance:
+          type: number
+          format: double
+        goal_amount:
           type: number
           format: double
     AccountCreateResponse:
@@ -705,13 +708,18 @@ components:
         balance:
           type: number
           format: double
+        goal_amount:
+          type: number
+          format: double
+        current_month_progress:
+          type: number
+          format: double
     TransferRequest:
       type: object
       required:
         - source_account_id
         - target_account_id
         - amount
-        - description
       properties:
         source_account_id:
           type: string
@@ -724,6 +732,8 @@ components:
           format: double
         description:
           type: string
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
     CreditCardCreateRequest:
       type: object
       required:

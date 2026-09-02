@@ -34,11 +34,15 @@ public class AccountController implements AccountsApi {
         BigDecimal initialBalance = accountCreateRequest.getInitialBalance() != null ?
                 BigDecimal.valueOf(accountCreateRequest.getInitialBalance()) : BigDecimal.ZERO;
 
+        BigDecimal goalAmount = accountCreateRequest.getGoalAmount() != null ?
+                BigDecimal.valueOf(accountCreateRequest.getGoalAmount()) : null;
+
         Account account = ledgerService.createAccount(
                 ownerId,
                 accountCreateRequest.getName(),
                 accountCreateRequest.getType().name(),
-                initialBalance
+                initialBalance,
+                goalAmount
         );
 
         AccountCreateResponse response = new AccountCreateResponse()
@@ -55,11 +59,19 @@ public class AccountController implements AccountsApi {
         List<AccountResponse> responseList = accounts.stream()
                 .map(a -> {
                     BigDecimal bal = ledgerService.getAccountBalance(a.getId());
+                    Double progress = null;
+                    if (a.getType() == AccountType.POCKET) {
+                        BigDecimal monthCredits = ledgerService.getPocketCurrentMonthProgress(a.getId());
+                        progress = monthCredits != null ? monthCredits.doubleValue() : 0.0;
+                    }
+
                     return new AccountResponse()
                             .id(a.getId())
                             .name(a.getName())
                             .type(a.getType().name())
-                            .balance(bal != null ? bal.doubleValue() : 0.0);
+                            .balance(bal != null ? bal.doubleValue() : 0.0)
+                            .goalAmount(a.getGoalAmount() != null ? a.getGoalAmount().doubleValue() : null)
+                            .currentMonthProgress(progress);
                 })
                 .collect(Collectors.toList());
 
@@ -78,6 +90,11 @@ public class AccountController implements AccountsApi {
 
         account.setName(accountCreateRequest.getName());
         account.setType(AccountType.valueOf(accountCreateRequest.getType().name()));
+        if (accountCreateRequest.getGoalAmount() != null) {
+            account.setGoalAmount(BigDecimal.valueOf(accountCreateRequest.getGoalAmount()));
+        } else {
+            account.setGoalAmount(null);
+        }
 
         accountRepository.save(account);
         return ResponseEntity.ok().build();

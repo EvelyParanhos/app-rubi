@@ -1,4 +1,4 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.1.0 - Tetos & Metas) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.1.1 - Caixinhas POCKET & Metas por Conta) */
 
 function getApiBase() {
   if (window.location.protocol === 'file:') {
@@ -17,7 +17,7 @@ const CATEGORIES = {
   "EDUCATION": "📚 Educação",
   "ENTERTAINMENT": "🎬 Entretenimento / Lazer",
   "TAXES_AND_FEES": "🧾 Impostos e Taxas",
-  "INVESTMENTS": "📈 Investimentos",
+  "INVESTMENTS": "📈 Investimentos (Transferências para Caixinhas)",
   "SUPERMARKET": "🛒 Supermercado",
   "UNCATEGORIZED": "📦 Sem Categoria",
   "PAYMENTS": "💳 Pagamentos",
@@ -31,8 +31,9 @@ const CATEGORIES = {
 };
 
 const ACCOUNT_TYPE_MAP = {
-  "CHECKING": "Conta Corrente",
-  "SAVINGS": "Conta Poupança",
+  "CHECKING": "Conta Corrente (Líquido)",
+  "POCKET": "Caixinha / Reserva / Investimento",
+  "SAVINGS": "Caixinha / Reserva",
   "LIABILITY": "Passivo / Cartão de Crédito"
 };
 
@@ -241,7 +242,17 @@ async function handleTelegramLink(e) {
   }
 }
 
-// --- ACCOUNTS HANDLERS ---
+// --- ACCOUNTS & CAIXINHAS HANDLERS ---
+function toggleAccountGoalInput() {
+  const type = document.getElementById('accType').value;
+  const goalGroup = document.getElementById('accGoalGroup');
+  if (type === 'POCKET') {
+    goalGroup.style.display = 'block';
+  } else {
+    goalGroup.style.display = 'none';
+  }
+}
+
 async function loadAccounts() {
   const res = await apiCall('/accounts', 'GET');
   const tbody = document.getElementById('accountsTableBody');
@@ -252,18 +263,35 @@ async function loadAccounts() {
     populateAccountSelects();
 
     if (res.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5">Nenhuma conta cadastrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">Nenhuma conta ou Caixinha cadastrada.</td></tr>';
       return;
     }
 
     res.data.forEach(acc => {
       const tr = document.createElement('tr');
       const typeLabel = ACCOUNT_TYPE_MAP[acc.type] || acc.type;
+      const isPocket = acc.type === 'POCKET' || acc.type === 'SAVINGS';
+
+      let goalHtml = 'N/A';
+      if (isPocket && acc.goal_amount) {
+        const prog = acc.current_month_progress || 0.0;
+        const pct = Math.min((prog / acc.goal_amount) * 100.0, 100.0);
+        goalHtml = `
+          <div><strong>${formatCurrency(acc.goal_amount)}</strong>/mês</div>
+          <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; overflow: hidden; height: 12px; margin-top: 4px;">
+            <div style="width: ${pct}%; background-color: var(--success-color); height: 100%;"></div>
+          </div>
+          <small>${formatCurrency(prog)} guardados (${pct.toFixed(0)}%)</small>
+        `;
+      } else if (isPocket) {
+        goalHtml = '<small style="color:#666;">Sem meta configurada</small>';
+      }
+
       tr.innerHTML = `
-        <td><strong>${escapeHtml(acc.name)}</strong></td>
+        <td><strong>${escapeHtml(acc.name)}</strong> ${isPocket ? '<span class="badge" style="background:#eef6fc; color:#0366d6; border:1px solid #b6d4fe;">📦 Caixinha</span>' : ''}</td>
         <td>${typeLabel}</td>
-        <td>${formatCurrency(acc.balance, acc.currency)}</td>
-        <td>${acc.currency || 'BRL'}</td>
+        <td><strong>${formatCurrency(acc.balance)}</strong></td>
+        <td style="min-width: 160px;">${goalHtml}</td>
         <td>
           <button onclick="editAccount('${acc.id}')" class="btn-sm">Editar</button>
           <button onclick="deleteAccount('${acc.id}')" class="btn-sm btn-danger">Excluir</button>
@@ -281,9 +309,11 @@ function resetAccountForm() {
   document.getElementById('accName').value = '';
   document.getElementById('accType').value = 'CHECKING';
   document.getElementById('accBalance').value = '0.00';
-  document.getElementById('accCurrency').value = 'BRL';
-  document.getElementById('accountFormTitle').textContent = 'Nova Conta';
-  document.getElementById('accSubmitBtn').textContent = 'Salvar Conta';
+  document.getElementById('accGoal').value = '';
+  toggleAccountGoalInput();
+
+  document.getElementById('accountFormTitle').textContent = 'Nova Conta / Caixinha';
+  document.getElementById('accSubmitBtn').textContent = 'Salvar Conta / Caixinha';
   document.getElementById('accCancelBtn').style.display = 'none';
 }
 
@@ -292,22 +322,26 @@ function editAccount(id) {
   if (!acc) return;
   document.getElementById('accountId').value = acc.id;
   document.getElementById('accName').value = acc.name;
-  document.getElementById('accType').value = acc.type;
+  document.getElementById('accType').value = acc.type === 'SAVINGS' ? 'POCKET' : acc.type;
   document.getElementById('accBalance').value = acc.balance;
-  document.getElementById('accCurrency').value = acc.currency || 'BRL';
+  document.getElementById('accGoal').value = acc.goal_amount || '';
+  toggleAccountGoalInput();
 
-  document.getElementById('accountFormTitle').textContent = 'Editar Conta';
-  document.getElementById('accSubmitBtn').textContent = 'Atualizar Conta';
+  document.getElementById('accountFormTitle').textContent = 'Editar Conta / Caixinha';
+  document.getElementById('accSubmitBtn').textContent = 'Atualizar Conta / Caixinha';
   document.getElementById('accCancelBtn').style.display = 'inline-block';
 }
 
 async function handleAccountSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('accountId').value;
+  const goalVal = document.getElementById('accGoal').value;
+
   const body = {
     name: document.getElementById('accName').value.trim(),
     type: document.getElementById('accType').value,
-    initial_balance: parseFloat(document.getElementById('accBalance').value)
+    initial_balance: parseFloat(document.getElementById('accBalance').value),
+    goal_amount: goalVal ? parseFloat(goalVal) : null
   };
 
   let res;
@@ -318,7 +352,7 @@ async function handleAccountSubmit(e) {
   }
 
   if (res.ok) {
-    alert(id ? 'Conta atualizada com sucesso!' : 'Conta criada com sucesso!');
+    alert(id ? 'Conta/Caixinha atualizada com sucesso!' : 'Conta/Caixinha criada com sucesso!');
     resetAccountForm();
     loadAccounts();
   } else {
@@ -348,10 +382,11 @@ function populateAccountSelects() {
     
     globalAccountsCache.forEach(acc => {
       const typeLabel = ACCOUNT_TYPE_MAP[acc.type] || acc.type;
+      const isPocket = acc.type === 'POCKET' || acc.type === 'SAVINGS';
       const isLiability = acc.type === 'LIABILITY';
       const opt = document.createElement('option');
       opt.value = acc.id;
-      opt.textContent = `${acc.name} (${typeLabel}) - ${formatCurrency(acc.balance, acc.currency)}${isLiability ? ' [Passivo/Cartão]' : ''}`;
+      opt.textContent = `${acc.name} (${typeLabel}) - ${formatCurrency(acc.balance)}${isPocket ? ' [📦 Caixinha]' : ''}${isLiability ? ' [Passivo/Cartão]' : ''}`;
       el.appendChild(opt);
     });
 
@@ -483,7 +518,7 @@ async function handleTransferSubmit(e) {
 
   const res = await apiCall('/transactions/transfer', 'POST', body);
   if (res.ok) {
-    alert('Transferência realizada com sucesso!');
+    alert('Transferência / Aporte realizado com sucesso!');
     document.getElementById('trAmount').value = '';
     loadTransactions();
     loadAccounts();
@@ -925,7 +960,7 @@ async function deleteRecurringTransaction(id) {
   }
 }
 
-// --- 🎯 CATEGORY BUDGETS & GOALS HANDLERS ---
+// --- 🎯 CATEGORY BUDGETS HANDLERS ---
 async function loadCategoryBudgets() {
   const res = await apiCall('/category-budgets', 'GET');
   const tbody = document.getElementById('budgetsTableBody');
@@ -933,7 +968,7 @@ async function loadCategoryBudgets() {
 
   if (res.ok && Array.isArray(res.data)) {
     if (res.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7">Nenhum teto de gastos ou meta configurada. Defina no formulário ao lado!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">Nenhum teto de gastos configurado. Defina no formulário ao lado!</td></tr>';
       return;
     }
 
@@ -941,7 +976,6 @@ async function loadCategoryBudgets() {
       const tr = document.createElement('tr');
       const spent = bg.current_month_spent || 0.0;
       const limit = bg.monthly_limit;
-      const goal = bg.monthly_goal;
       const pct = bg.progress_percentage || 0.0;
       const status = bg.status;
 
@@ -967,7 +1001,6 @@ async function loadCategoryBudgets() {
         <td><strong>${formatCategory(bg.category)}</strong></td>
         <td><strong style="color: ${spent > (limit || 0) && limit ? '#dc3545' : 'inherit'}">${formatCurrency(spent)}</strong></td>
         <td>${limit ? formatCurrency(limit) : 'N/A'}</td>
-        <td>${goal ? formatCurrency(goal) : 'N/A'}</td>
         <td style="min-width: 130px;">${progressHtml}</td>
         <td>${statusBadge}</td>
         <td>
@@ -977,7 +1010,7 @@ async function loadCategoryBudgets() {
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = '<tr><td colspan="7">Erro ao carregar tetos e metas por categoria.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Erro ao carregar tetos de gastos por categoria.</td></tr>';
   }
 }
 
@@ -985,32 +1018,29 @@ async function handleCategoryBudgetSubmit(e) {
   e.preventDefault();
   const category = document.getElementById('bgCategory').value;
   const limitVal = document.getElementById('bgLimit').value;
-  const goalVal = document.getElementById('bgGoal').value;
 
-  if (!limitVal && !goalVal) {
-    alert('Preencha ao menos o Teto de Gastos (R$) ou a Meta Mensal (R$)!');
+  if (!limitVal) {
+    alert('Preencha o Teto de Gastos (R$)!');
     return;
   }
 
   const body = {
     category: category,
-    monthly_limit: limitVal ? parseFloat(limitVal) : null,
-    monthly_goal: goalVal ? parseFloat(goalVal) : null
+    monthly_limit: parseFloat(limitVal)
   };
 
   const res = await apiCall('/category-budgets', 'POST', body);
   if (res.ok) {
-    alert('Teto / Meta por categoria salvo com sucesso!');
+    alert('Teto de gastos por categoria salvo com sucesso!');
     document.getElementById('bgLimit').value = '';
-    document.getElementById('bgGoal').value = '';
     loadCategoryBudgets();
   } else {
-    alert('Erro ao salvar teto/meta por categoria.');
+    alert('Erro ao salvar teto de gastos por categoria.');
   }
 }
 
 async function deleteCategoryBudget(category) {
-  if (!confirm(`Deseja remover o teto/meta da categoria ${formatCategory(category)}?`)) return;
+  if (!confirm(`Deseja remover o teto da categoria ${formatCategory(category)}?`)) return;
 
   const res = await apiCall(`/category-budgets/${category}`, 'DELETE');
   if (res.ok) {
@@ -1030,6 +1060,9 @@ function populateCategorySelects() {
     const currentVal = el.value;
     el.innerHTML = id === 'filterCategory' ? '<option value="">Todas as Categorias</option>' : '';
     Object.keys(CATEGORIES).forEach(catKey => {
+      // For budget category limit, skip INVESTMENTS as goals are per POCKET account
+      if (id === 'bgCategory' && catKey === 'INVESTMENTS') return;
+
       const opt = document.createElement('option');
       opt.value = catKey;
       opt.textContent = CATEGORIES[catKey];
