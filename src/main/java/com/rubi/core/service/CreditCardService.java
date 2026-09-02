@@ -6,6 +6,7 @@ import com.rubi.core.repository.CreditCardRepository;
 import com.rubi.core.repository.InvoiceRepository;
 import com.rubi.core.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,16 +77,7 @@ public class CreditCardService {
             YearMonth currentYearMonth = firstInvoiceMonth.plusMonths(i - 1);
             String currentMonthStr = currentYearMonth.toString();
 
-            Invoice invoice = invoiceRepository.findByCreditCardIdAndReferenceMonth(creditCard.getId(), currentMonthStr)
-                    .orElseGet(() -> {
-                        Invoice newInvoice = Invoice.builder()
-                                .creditCard(creditCard)
-                                .referenceMonth(currentMonthStr)
-                                .status(InvoiceStatus.OPEN)
-                                .createdAt(LocalDateTime.now())
-                                .build();
-                        return invoiceRepository.save(newInvoice);
-                    });
+            Invoice invoice = getOrCreateInvoice(creditCard, currentMonthStr);
 
             BigDecimal valueForInstallment = (i == 1) ? firstInstallmentValue : installmentValue;
 
@@ -104,7 +96,7 @@ public class CreditCardService {
                     .invoice(invoice)
                     .installmentNumber(i)
                     .totalInstallments(installments)
-                    .status("CONFIRMED")
+                    .status(TransactionStatus.CONFIRMED)
                     .build();
 
             Transaction savedTx = transactionRepository.save(transaction);
@@ -114,6 +106,24 @@ public class CreditCardService {
         }
 
         return firstTx;
+    }
+
+    private Invoice getOrCreateInvoice(CreditCard creditCard, String referenceMonth) {
+        return invoiceRepository.findByCreditCardIdAndReferenceMonth(creditCard.getId(), referenceMonth)
+                .orElseGet(() -> {
+                    try {
+                        Invoice newInvoice = Invoice.builder()
+                                .creditCard(creditCard)
+                                .referenceMonth(referenceMonth)
+                                .status(InvoiceStatus.OPEN)
+                                .createdAt(LocalDateTime.now())
+                                .build();
+                        return invoiceRepository.saveAndFlush(newInvoice);
+                    } catch (DataIntegrityViolationException e) {
+                        return invoiceRepository.findByCreditCardIdAndReferenceMonth(creditCard.getId(), referenceMonth)
+                                .orElseThrow(() -> new IllegalStateException("Invoice creation conflict for month " + referenceMonth));
+                    }
+                });
     }
 
     @Transactional

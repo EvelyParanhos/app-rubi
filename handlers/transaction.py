@@ -14,7 +14,7 @@ from handlers.auth import get_main_menu_keyboard
 logger = logging.getLogger(__name__)
 
 # Estados do Registro e Edição de Transação
-TRANS_AMOUNT, TRANS_ACCOUNT, TRANS_CATEGORY, TRANS_SPLIT, TRANS_CONFIRM, EDIT_TX_VAL, EDIT_TX_CAT = range(7)
+TRANS_AMOUNT, TRANS_ACCOUNT, TRANS_CATEGORY, TRANS_CONFIRM, EDIT_TX_VAL, EDIT_TX_CAT = range(6)
 
 CATEGORIES = {
     "SUPERMARKET": "🛒 Mercado",
@@ -125,68 +125,19 @@ async def category_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cat_code = query.data.replace("cat_", "")
     context.user_data["trans_category"] = cat_code
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🤝 Dividir 50/50", callback_data="split_50"),
-            InlineKeyboardButton("✏️ Outro Valor", callback_data="split_custom")
-        ],
-        [InlineKeyboardButton("👤 Apenas Meu", callback_data="split_none")]
-    ])
-
-    await query.edit_message_text(
-        "Deseja realizar o **rateio de casal** para esta despesa?",
-        reply_markup=keyboard
-    )
-    return TRANS_SPLIT
-
-async def split_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    try:
-        await query.answer()
-    except Exception:
-        pass
-
-    choice = query.data
-    amount = context.user_data.get("trans_amount", 0.0)
-
-    if choice == "split_50":
-        context.user_data["trans_split_amount"] = amount / 2.0
-    elif choice == "split_none":
-        context.user_data["trans_split_amount"] = 0.0
-    elif choice == "split_custom":
-        await query.edit_message_text(f"Digite o **valor em R$** que cabe ao seu parceiro(a) (de R$ 0.00 até R$ {amount:.2f}):")
-        return TRANS_SPLIT
-
     return await show_confirmation(query, context, edit=True)
-
-async def custom_split_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    raw_val = update.message.text.strip().replace(",", ".")
-    amount = context.user_data.get("trans_amount", 0.0)
-
-    try:
-        val = float(raw_val)
-        if val < 0 or val > amount:
-            raise ValueError()
-        context.user_data["trans_split_amount"] = val
-    except ValueError:
-        await update.message.reply_text(f"❌ Valor inválido. Digite um valor entre 0 e {amount:.2f}:")
-        return TRANS_SPLIT
-
-    return await show_confirmation(update.message, context, edit=False)
 
 async def show_confirmation(target, context, edit=False):
     t_type = "Gasto (Débito)" if context.user_data.get("trans_type") == "DEBIT" else "Receita (Crédito)"
     val = context.user_data.get("trans_amount", 0.0)
     cat = context.user_data.get("trans_category", "UNCATEGORIZED")
     cat_name = CATEGORIES.get(cat, cat)
-    split_amt = context.user_data.get("trans_split_amount", 0.0)
 
     msg_text = (
         f"📋 **Confirmação de Registro**\n\n"
         f"• **Tipo**: {t_type}\n"
         f"• **Valor Total**: R$ {val:.2f}\n"
-        f"• **Categoria**: {cat_name}\n"
-        f"• **Rateio Parceiro(a)**: R$ {split_amt:.2f}\n\n"
+        f"• **Categoria**: {cat_name}\n\n"
         f"Deseja efetivar o registro?"
     )
 
@@ -222,11 +173,10 @@ async def confirm_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     amount = context.user_data.get("trans_amount")
     trans_type = context.user_data.get("trans_type")
     category = context.user_data.get("trans_category")
-    split_amt = context.user_data.get("trans_split_amount", 0.0)
 
     try:
         desc = "Gasto Registrado via Telegram" if trans_type == "DEBIT" else "Receita Registrada via Telegram"
-        res = client.create_transaction(
+        client.create_transaction(
             account_id=acc_id,
             amount=amount,
             trans_type=trans_type,
@@ -235,8 +185,6 @@ async def confirm_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         res_text = f"✅ **Transação registrada com sucesso!**\n\n💰 R$ {amount:.2f} ({CATEGORIES.get(category, category)})"
-        if split_amt > 0:
-            res_text += f"\n🤝 Rateio flexível de R$ {split_amt:.2f} computado no acerto do casal."
 
         await query.edit_message_text(res_text, reply_markup=get_main_menu_keyboard(), parse_mode="Markdown")
     except Exception as e:
@@ -342,7 +290,6 @@ async def edit_tx_cat_selected(update: Update, context: ContextTypes.DEFAULT_TYP
     client = get_client(chat_id)
 
     try:
-        # Buscar contas do usuário para obter o account_id da transação
         accounts = client.get_accounts()
         acc_id = accounts[0]["id"] if accounts else None
 
@@ -382,10 +329,6 @@ def get_transaction_conversation_handler():
             TRANS_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, amount_received)],
             TRANS_ACCOUNT: [CallbackQueryHandler(account_selected, pattern="^acc_")],
             TRANS_CATEGORY: [CallbackQueryHandler(category_selected, pattern="^cat_")],
-            TRANS_SPLIT: [
-                CallbackQueryHandler(split_selected, pattern="^split_"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, custom_split_received)
-            ],
             TRANS_CONFIRM: [CallbackQueryHandler(confirm_decision, pattern="^confirm_trans_")],
             EDIT_TX_VAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_tx_val_received)],
             EDIT_TX_CAT: [CallbackQueryHandler(edit_tx_cat_selected, pattern="^editcat_")],

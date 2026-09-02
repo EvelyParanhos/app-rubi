@@ -63,7 +63,7 @@ public class RecurringTransactionScheduler {
                             .description("[Recorrente] " + rec.getDescription())
                             .category(rec.getCategory())
                             .referenceDate(LocalDateTime.now())
-                            .status("PENDING_ADJUSTMENT")
+                            .status(TransactionStatus.PENDING)
                             .build();
 
                     transactionRepository.save(tx);

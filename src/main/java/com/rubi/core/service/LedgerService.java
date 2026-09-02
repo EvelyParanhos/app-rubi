@@ -29,7 +29,6 @@ public class LedgerService {
 
         Account account = Account.builder()
                 .owner(owner)
-                .custodianId(ownerId)
                 .name(name)
                 .type(accountType)
                 .isActive(true)
@@ -47,7 +46,7 @@ public class LedgerService {
                     .type(TransactionType.OPENING_BALANCE)
                     .description("Saldo Inicial")
                     .referenceDate(LocalDateTime.now())
-                    .status("CONFIRMED")
+                    .status(TransactionStatus.CONFIRMED)
                     .build();
             transactionRepository.save(initialTransaction);
         }
@@ -83,7 +82,7 @@ public class LedgerService {
                 .type(TransactionType.DEBIT)
                 .description(description)
                 .referenceDate(LocalDateTime.now())
-                .status("CONFIRMED")
+                .status(TransactionStatus.CONFIRMED)
                 .build();
 
         Transaction creditTransaction = Transaction.builder()
@@ -94,7 +93,7 @@ public class LedgerService {
                 .type(TransactionType.CREDIT)
                 .description(description)
                 .referenceDate(LocalDateTime.now())
-                .status("CONFIRMED")
+                .status(TransactionStatus.CONFIRMED)
                 .build();
 
         transactionRepository.save(debitTransaction);
@@ -118,7 +117,7 @@ public class LedgerService {
                 .description(description)
                 .category(category)
                 .referenceDate(referenceDate)
-                .status("CONFIRMED")
+                .status(TransactionStatus.CONFIRMED)
                 .build();
 
         return transactionRepository.save(transaction);

@@ -73,7 +73,7 @@ public class TelegramSessionService {
                     .type(TransactionType.OPENING_BALANCE)
                     .description("Saldo Inicial de Abertura")
                     .referenceDate(LocalDateTime.now())
-                    .status("CONFIRMED")
+                    .status(TransactionStatus.CONFIRMED)
                     .build();
             transactionRepository.save(openingBalanceTx);
         }

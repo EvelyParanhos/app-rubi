@@ -66,11 +66,10 @@ class RubiApiClient:
         res = self._request("GET", "/accounts")
         return res if isinstance(res, list) else []
 
-    def create_account(self, name: str, acc_type: str = "CHECKING", is_joint: bool = False, initial_balance: float = 0.0) -> dict:
+    def create_account(self, name: str, acc_type: str = "CHECKING", initial_balance: float = 0.0) -> dict:
         payload = {
             "name": name,
             "type": acc_type,
-            "is_joint": is_joint,
             "initial_balance": initial_balance
         }
         return self._request("POST", "/accounts", payload)
@@ -150,26 +149,6 @@ class RubiApiClient:
             "category": category
         }
         return self._request("POST", "/recurring-transactions", payload)
-
-    def get_active_partnership(self) -> dict:
-        try:
-            return self._request("GET", "/partnerships/active")
-        except Exception:
-            return {"has_active_partnership": False}
-
-    def get_net_balance(self, month: str = None) -> dict:
-        params = {}
-        if month:
-            params["month"] = month
-        return self._request("GET", "/settlements/net-balance", params=params)
-
-    def pay_settlement(self, month: str, source_account_id: str, amount: float) -> dict:
-        payload = {
-            "month": month,
-            "source_account_id": source_account_id,
-            "amount": amount
-        }
-        return self._request("POST", "/settlements/pay", payload)
 
     def _request(self, method: str, endpoint: str, payload: dict = None, params: dict = None, require_auth: bool = True) -> dict | list:
         url = f"{self.base_url}{endpoint}"

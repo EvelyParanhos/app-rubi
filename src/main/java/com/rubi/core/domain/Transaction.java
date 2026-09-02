@@ -59,6 +59,7 @@ public class Transaction {
     @Column(name = "category")
     private Category category;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private String status;
+    private TransactionStatus status;
 }

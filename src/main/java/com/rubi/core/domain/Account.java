@@ -24,9 +24,6 @@ public class Account {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    @Column(name = "custodian_id")
-    private UUID custodianId;
-
     @Column(nullable = false)
     private String name;
 

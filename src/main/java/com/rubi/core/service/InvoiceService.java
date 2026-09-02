@@ -65,7 +65,7 @@ public class InvoiceService {
                     .description("Saldo remanescente fatura " + invoice.getReferenceMonth())
                     .referenceDate(LocalDateTime.now())
                     .invoice(nextInvoice)
-                    .status("PENDING_ADJUSTMENT")
+                    .status(TransactionStatus.PENDING)
                     .build();
 
             transactionRepository.save(rollover);
