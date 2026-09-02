@@ -526,6 +526,54 @@ paths:
       responses:
         '200':
           description: OK
+  /api/category-budgets:
+    get:
+      tags:
+        - category-budgets
+      summary: Get all category budgets and goals for current user
+      operationId: getCategoryBudgets
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryBudgetResponse'
+    post:
+      tags:
+        - category-budgets
+      summary: Create or update category spending limit and goal
+      operationId: saveCategoryBudget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryBudgetCreateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryBudgetResponse'
+  /api/category-budgets/{category}:
+    delete:
+      tags:
+        - category-budgets
+      summary: Delete category budget and goal
+      operationId: deleteCategoryBudget
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/CategoryEnum'
+      responses:
+        '204':
+          description: No Content
 
 components:
   schemas:
@@ -1097,4 +1145,46 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MonthForecastItem'
+    CategoryBudgetCreateRequest:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        monthly_limit:
+          type: number
+          format: double
+        monthly_goal:
+          type: number
+          format: double
+    CategoryBudgetResponse:
+      type: object
+      required:
+        - id
+        - category
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        monthly_limit:
+          type: number
+          format: double
+        monthly_goal:
+          type: number
+          format: double
+        current_month_spent:
+          type: number
+          format: double
+        progress_percentage:
+          type: number
+          format: double
+        status:
+          type: string
+          enum:
+            - OK
+            - WARNING
+            - EXCEEDED
 

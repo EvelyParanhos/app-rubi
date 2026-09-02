@@ -1,4 +1,4 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.9 - Forecast & Master Edits) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.1.0 - Tetos & Metas) */
 
 function getApiBase() {
   if (window.location.protocol === 'file:') {
@@ -94,6 +94,7 @@ function switchTab(tabName) {
     if (tabName === 'transactions') { populateAccountSelects(); loadTransactions(); }
     if (tabName === 'cards') { loadAccounts(); loadCreditCards(); populateCategorySelects(); }
     if (tabName === 'forecast') { populateAccountSelects(); loadCreditCards(); populateCategorySelects(); loadForecast(); loadRecurringMasterList(); }
+    if (tabName === 'budgets') { populateCategorySelects(); loadCategoryBudgets(); }
   }
 }
 
@@ -924,12 +925,109 @@ async function deleteRecurringTransaction(id) {
   }
 }
 
+// --- 🎯 CATEGORY BUDGETS & GOALS HANDLERS ---
+async function loadCategoryBudgets() {
+  const res = await apiCall('/category-budgets', 'GET');
+  const tbody = document.getElementById('budgetsTableBody');
+  tbody.innerHTML = '';
+
+  if (res.ok && Array.isArray(res.data)) {
+    if (res.data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7">Nenhum teto de gastos ou meta configurada. Defina no formulário ao lado!</td></tr>';
+      return;
+    }
+
+    res.data.forEach(bg => {
+      const tr = document.createElement('tr');
+      const spent = bg.current_month_spent || 0.0;
+      const limit = bg.monthly_limit;
+      const goal = bg.monthly_goal;
+      const pct = bg.progress_percentage || 0.0;
+      const status = bg.status;
+
+      let barColor = '#28a745'; // Green
+      let statusBadge = '<span class="badge logged-in">🟩 OK</span>';
+
+      if (status === 'WARNING') {
+        barColor = '#ffc107'; // Yellow
+        statusBadge = '<span class="badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">🟨 ALERTA (80%+)</span>';
+      } else if (status === 'EXCEEDED') {
+        barColor = '#dc3545'; // Red
+        statusBadge = '<span class="badge logged-out">🟥 TETO EXCEDIDO</span>';
+      }
+
+      const progressHtml = limit ? `
+        <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; overflow: hidden; height: 16px;">
+          <div style="width: ${Math.min(pct, 100)}%; background-color: ${barColor}; height: 100%;"></div>
+        </div>
+        <small>${pct.toFixed(1)}% consumido</small>
+      ` : '<small style="color:#666;">Sem teto definido</small>';
+
+      tr.innerHTML = `
+        <td><strong>${formatCategory(bg.category)}</strong></td>
+        <td><strong style="color: ${spent > (limit || 0) && limit ? '#dc3545' : 'inherit'}">${formatCurrency(spent)}</strong></td>
+        <td>${limit ? formatCurrency(limit) : 'N/A'}</td>
+        <td>${goal ? formatCurrency(goal) : 'N/A'}</td>
+        <td style="min-width: 130px;">${progressHtml}</td>
+        <td>${statusBadge}</td>
+        <td>
+          <button onclick="deleteCategoryBudget('${bg.category}')" class="btn-sm btn-danger">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    tbody.innerHTML = '<tr><td colspan="7">Erro ao carregar tetos e metas por categoria.</td></tr>';
+  }
+}
+
+async function handleCategoryBudgetSubmit(e) {
+  e.preventDefault();
+  const category = document.getElementById('bgCategory').value;
+  const limitVal = document.getElementById('bgLimit').value;
+  const goalVal = document.getElementById('bgGoal').value;
+
+  if (!limitVal && !goalVal) {
+    alert('Preencha ao menos o Teto de Gastos (R$) ou a Meta Mensal (R$)!');
+    return;
+  }
+
+  const body = {
+    category: category,
+    monthly_limit: limitVal ? parseFloat(limitVal) : null,
+    monthly_goal: goalVal ? parseFloat(goalVal) : null
+  };
+
+  const res = await apiCall('/category-budgets', 'POST', body);
+  if (res.ok) {
+    alert('Teto / Meta por categoria salvo com sucesso!');
+    document.getElementById('bgLimit').value = '';
+    document.getElementById('bgGoal').value = '';
+    loadCategoryBudgets();
+  } else {
+    alert('Erro ao salvar teto/meta por categoria.');
+  }
+}
+
+async function deleteCategoryBudget(category) {
+  if (!confirm(`Deseja remover o teto/meta da categoria ${formatCategory(category)}?`)) return;
+
+  const res = await apiCall(`/category-budgets/${category}`, 'DELETE');
+  if (res.ok) {
+    alert('Regra da categoria removida.');
+    loadCategoryBudgets();
+  } else {
+    alert('Erro ao remover regra da categoria.');
+  }
+}
+
 // --- UTILITY HELPERS ---
 function populateCategorySelects() {
-  const catSelects = ['filterCategory', 'txCategory', 'cpCategory', 'recCategory'];
+  const catSelects = ['filterCategory', 'txCategory', 'cpCategory', 'recCategory', 'bgCategory'];
   catSelects.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+    const currentVal = el.value;
     el.innerHTML = id === 'filterCategory' ? '<option value="">Todas as Categorias</option>' : '';
     Object.keys(CATEGORIES).forEach(catKey => {
       const opt = document.createElement('option');
@@ -937,6 +1035,7 @@ function populateCategorySelects() {
       opt.textContent = CATEGORIES[catKey];
       el.appendChild(opt);
     });
+    if (currentVal) el.value = currentVal;
   });
 }
 
