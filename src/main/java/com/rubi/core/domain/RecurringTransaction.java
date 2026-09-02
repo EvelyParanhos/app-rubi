@@ -22,8 +22,12 @@ public class RecurringTransaction {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id", nullable = false)
+    @JoinColumn(name = "account_id")
     private Account account;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_card_id")
+    private CreditCard creditCard;
 
     @Column(nullable = false)
     private String description;

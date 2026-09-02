@@ -1,4 +1,4 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.8 - Forecast 12 Meses) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.0.9 - Forecast & Master Edits) */
 
 function getApiBase() {
   if (window.location.protocol === 'file:') {
@@ -38,6 +38,7 @@ const ACCOUNT_TYPE_MAP = {
 
 let globalAccountsCache = [];
 let globalCardsCache = [];
+let globalMasterRecurringCache = [];
 let globalForecastResponse = null;
 let selectedForecastMonth = null;
 
@@ -92,7 +93,7 @@ function switchTab(tabName) {
     if (tabName === 'accounts') loadAccounts();
     if (tabName === 'transactions') { populateAccountSelects(); loadTransactions(); }
     if (tabName === 'cards') { loadAccounts(); loadCreditCards(); populateCategorySelects(); }
-    if (tabName === 'forecast') { populateAccountSelects(); populateCategorySelects(); loadForecast(); loadRecurringMasterList(); }
+    if (tabName === 'forecast') { populateAccountSelects(); loadCreditCards(); populateCategorySelects(); loadForecast(); loadRecurringMasterList(); }
   }
 }
 
@@ -357,6 +358,39 @@ function populateAccountSelects() {
   });
 }
 
+function populateCardSelects() {
+  const selectIds = ['recCard', 'cpCard', 'selectCardInvoice'];
+  selectIds.forEach(selectId => {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    const currentVal = el.value;
+    el.innerHTML = selectId === 'selectCardInvoice' || selectId === 'cpCard' ? '<option value="">-- Selecione o Cartão --</option>' : '';
+
+    globalCardsCache.forEach(card => {
+      const opt = document.createElement('option');
+      opt.value = card.id;
+      opt.textContent = `${card.name} (Dia fech. ${card.closing_day} / dia venc. ${card.due_day})`;
+      el.appendChild(opt);
+    });
+
+    if (currentVal) el.value = currentVal;
+  });
+}
+
+function toggleRecTargetSelects() {
+  const targetType = document.getElementById('recTargetType').value;
+  const accGroup = document.getElementById('recAccountGroup');
+  const cardGroup = document.getElementById('recCardGroup');
+
+  if (targetType === 'CARD') {
+    accGroup.style.display = 'none';
+    cardGroup.style.display = 'block';
+  } else {
+    accGroup.style.display = 'block';
+    cardGroup.style.display = 'none';
+  }
+}
+
 // --- TRANSACTIONS HANDLERS ---
 async function loadTransactions() {
   const month = document.getElementById('filterMonth').value;
@@ -473,15 +507,13 @@ async function deleteTransaction(id) {
 async function loadCreditCards() {
   const res = await apiCall('/credit-cards', 'GET');
   const tbody = document.getElementById('cardsTableBody');
-  const selectCardInvoice = document.getElementById('selectCardInvoice');
-  const cpCard = document.getElementById('cpCard');
 
   tbody.innerHTML = '';
-  selectCardInvoice.innerHTML = '<option value="">-- Selecione o Cartão --</option>';
-  cpCard.innerHTML = '<option value="">-- Selecione o Cartão --</option>';
 
   if (res.ok && Array.isArray(res.data)) {
     globalCardsCache = res.data;
+    populateCardSelects();
+
     if (res.data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5">Nenhum cartão de crédito cadastrado.</td></tr>';
       return;
@@ -499,16 +531,6 @@ async function loadCreditCards() {
         </td>
       `;
       tbody.appendChild(tr);
-
-      const opt1 = document.createElement('option');
-      opt1.value = card.id;
-      opt1.textContent = `${card.name} (Fechamento: Dia ${card.closing_day})`;
-      selectCardInvoice.appendChild(opt1);
-
-      const opt2 = document.createElement('option');
-      opt2.value = card.id;
-      opt2.textContent = card.name;
-      cpCard.appendChild(opt2);
     });
   } else {
     tbody.innerHTML = '<tr><td colspan="5">Erro ao carregar cartões de crédito.</td></tr>';
@@ -643,7 +665,7 @@ async function loadForecast(startMonth = '') {
     }
     renderForecastUI();
   } else {
-    document.getElementById('forecastTableBody').innerHTML = '<tr><td colspan="7">Erro ao carregar previsão de 12 meses.</td></tr>';
+    document.getElementById('forecastTableBody').innerHTML = '<tr><td colspan="8">Erro ao carregar previsão de 12 meses.</td></tr>';
   }
 }
 
@@ -688,7 +710,7 @@ function renderForecastUI() {
   tbody.innerHTML = '';
 
   if (!mData.checklist_items || mData.checklist_items.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7">Nenhuma transação recorrente prevista para este mês. Cadastre novas regras abaixo!</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Nenhuma transação recorrente prevista para este mês. Cadastre novas regras abaixo!</td></tr>';
     return;
   }
 
@@ -703,11 +725,15 @@ function renderForecastUI() {
       ? '<span class="badge logged-in">✅ REALIZADO</span>'
       : '<span class="badge logged-out" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">⏳ PREVISTO</span>';
 
+    const targetBadge = item.credit_card_id 
+      ? `<span class="badge" style="background:#eef6fc; color:#0366d6; border:1px solid #b6d4fe;">💳 Cartão: ${escapeHtml(item.credit_card_name || 'Cartão')}</span>`
+      : `<span class="badge" style="background:#f6f8fa; color:#24292e; border:1px solid #d1d5da;">🏦 Conta: ${getAccountName(item.account_id)}</span>`;
+
     const overrideNotice = item.is_overridden ? ' <small style="color:#d9534f;">(Valor alterado no mês)</small>' : '';
 
     let actionButtons = '';
     if (isFulfilled) {
-      actionButtons = `<small style="color:#28a745;">Quitado no extrato</small>`;
+      actionButtons = `<small style="color:#28a745;">Quitado</small>`;
     } else {
       actionButtons = `
         <button onclick="fulfillChecklistItem('${item.recurring_transaction_id}', '${mData.month}')" class="btn-sm btn-success">✅ Dar Baixa</button>
@@ -720,6 +746,7 @@ function renderForecastUI() {
       <td>${typeLabel}</td>
       <td>Dia ${item.due_day}</td>
       <td style="${amountColor}"><strong>${formatCurrency(item.amount)}</strong></td>
+      <td>${targetBadge}</td>
       <td>${formatCategory(item.category)}</td>
       <td>${statusBadge}</td>
       <td>${actionButtons}</td>
@@ -729,13 +756,13 @@ function renderForecastUI() {
 }
 
 async function fulfillChecklistItem(recId, month) {
-  if (!confirm(`Deseja confirmar o pagamento/recebimento deste item para o mês ${month}? Uma transação real será gravada no extrato.`)) return;
+  if (!confirm(`Deseja confirmar o pagamento/recebimento deste item para o mês ${month}? Se for no cartão de crédito, uma compra será lançada na fatura.`)) return;
 
   const res = await apiCall(`/recurring-transactions/${recId}/fulfill`, 'POST', { reference_month: month });
   if (res.ok) {
-    alert('Item baixado com sucesso! A transação foi gravada no extrato.');
+    alert('Item baixado com sucesso!');
     loadForecast(globalForecastResponse ? globalForecastResponse.start_month : '');
-    loadAccounts(); // Refresh balance
+    loadAccounts();
   } else {
     alert('Erro ao dar baixa no item.');
   }
@@ -765,8 +792,9 @@ async function loadRecurringMasterList() {
   tbody.innerHTML = '';
 
   if (res.ok && Array.isArray(res.data)) {
+    globalMasterRecurringCache = res.data;
     if (res.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6">Nenhuma regra recorrente cadastrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">Nenhuma regra recorrente cadastrada.</td></tr>';
       return;
     }
 
@@ -774,27 +802,76 @@ async function loadRecurringMasterList() {
       const tr = document.createElement('tr');
       const isExpense = rec.type === 'EXPENSE';
       const typeLabel = isExpense ? 'Despesa Fixa' : 'Salário / Receita';
+
+      const targetLabel = rec.credit_card_id
+        ? `💳 Cartão: ${escapeHtml(rec.credit_card_name || 'Cartão')}`
+        : `🏦 Conta: ${getAccountName(rec.account_id)}`;
+
       tr.innerHTML = `
         <td><strong>${escapeHtml(rec.description)}</strong></td>
         <td>${typeLabel}</td>
         <td>${formatCurrency(rec.amount)}</td>
         <td>Dia ${rec.due_day}</td>
+        <td>${targetLabel}</td>
         <td>${formatCategory(rec.category)}</td>
         <td>
-          <button onclick="deleteRecurringTransaction('${rec.id}')" class="btn-sm btn-danger">Excluir Regra</button>
+          <button onclick="editRecurringMaster('${rec.id}')" class="btn-sm">✏️ Editar Mestre</button>
+          <button onclick="deleteRecurringTransaction('${rec.id}')" class="btn-sm btn-danger">Excluir</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   } else {
-    tbody.innerHTML = '<tr><td colspan="6">Erro ao carregar regras recorrentes.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">Erro ao carregar regras recorrentes.</td></tr>';
   }
+}
+
+function resetRecurringForm() {
+  document.getElementById('recMasterId').value = '';
+  document.getElementById('recDescription').value = '';
+  document.getElementById('recAmount').value = '';
+  document.getElementById('recDueDay').value = '5';
+  document.getElementById('recType').value = 'INCOME';
+  document.getElementById('recTargetType').value = 'ACCOUNT';
+  toggleRecTargetSelects();
+
+  document.getElementById('recFormTitle').textContent = '➕ Cadastrar Regra Recorrente (Conta Bancária ou Assinatura de Cartão)';
+  document.getElementById('recSubmitBtn').textContent = 'Cadastrar Recorrente';
+  document.getElementById('recCancelBtn').style.display = 'none';
+}
+
+function editRecurringMaster(id) {
+  const rec = globalMasterRecurringCache.find(r => r.id === id);
+  if (!rec) return;
+
+  document.getElementById('recMasterId').value = rec.id;
+  document.getElementById('recDescription').value = rec.description;
+  document.getElementById('recAmount').value = rec.amount;
+  document.getElementById('recDueDay').value = rec.due_day;
+  document.getElementById('recType').value = rec.type;
+  document.getElementById('recCategory').value = rec.category || 'UNCATEGORIZED';
+
+  if (rec.credit_card_id) {
+    document.getElementById('recTargetType').value = 'CARD';
+    toggleRecTargetSelects();
+    document.getElementById('recCard').value = rec.credit_card_id;
+  } else {
+    document.getElementById('recTargetType').value = 'ACCOUNT';
+    toggleRecTargetSelects();
+    document.getElementById('recAccount').value = rec.account_id;
+  }
+
+  document.getElementById('recFormTitle').textContent = '✏️ Editar Regra Recorrente MESTRE (Atualiza todos os meses futuros)';
+  document.getElementById('recSubmitBtn').textContent = 'Salvar Alterações Mestre';
+  document.getElementById('recCancelBtn').style.display = 'inline-block';
 }
 
 async function handleRecurringSubmit(e) {
   e.preventDefault();
+  const masterId = document.getElementById('recMasterId').value;
+  const targetType = document.getElementById('recTargetType').value;
+
   const body = {
-    account_id: document.getElementById('recAccount').value,
     description: document.getElementById('recDescription').value.trim(),
     amount: parseFloat(document.getElementById('recAmount').value),
     type: document.getElementById('recType').value,
@@ -802,15 +879,36 @@ async function handleRecurringSubmit(e) {
     category: document.getElementById('recCategory').value
   };
 
-  const res = await apiCall('/recurring-transactions', 'POST', body);
+  if (targetType === 'CARD') {
+    const cardId = document.getElementById('recCard').value;
+    if (!cardId) {
+      alert('Selecione o cartão de crédito!');
+      return;
+    }
+    body.credit_card_id = cardId;
+  } else {
+    const accId = document.getElementById('recAccount').value;
+    if (!accId) {
+      alert('Selecione a conta bancária!');
+      return;
+    }
+    body.account_id = accId;
+  }
+
+  let res;
+  if (masterId) {
+    res = await apiCall(`/recurring-transactions/${masterId}`, 'PUT', body);
+  } else {
+    res = await apiCall('/recurring-transactions', 'POST', body);
+  }
+
   if (res.ok) {
-    alert('Regra recorrente cadastrada com sucesso!');
-    document.getElementById('recDescription').value = '';
-    document.getElementById('recAmount').value = '';
+    alert(masterId ? 'Regra Mestre atualizada com sucesso para todos os meses futuros!' : 'Regra recorrente cadastrada com sucesso!');
+    resetRecurringForm();
     loadForecast();
     loadRecurringMasterList();
   } else {
-    alert('Erro ao cadastrar regra recorrente.');
+    alert('Erro ao salvar regra recorrente.');
   }
 }
 
@@ -899,5 +997,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load initial accounts if token exists
   if (getToken()) {
     loadAccounts();
+    loadCreditCards();
   }
 });

@@ -47,12 +47,16 @@ public class CreditCardService {
     }
 
     @Transactional
-    public void processPurchase(UUID creditCardId, BigDecimal amount, String description, int installments, OffsetDateTime purchaseDate) {
+    public Transaction processPurchase(UUID creditCardId, BigDecimal amount, String description, Category category, int installments, OffsetDateTime purchaseDate) {
         CreditCard creditCard = creditCardRepository.findById(creditCardId)
                 .orElseThrow(() -> new IllegalArgumentException("Credit card not found"));
 
         if (installments < 1) {
             installments = 1;
+        }
+
+        if (purchaseDate == null) {
+            purchaseDate = OffsetDateTime.now();
         }
 
         YearMonth firstInvoiceMonth;
@@ -65,6 +69,8 @@ public class CreditCardService {
         BigDecimal installmentsBd = BigDecimal.valueOf(installments);
         BigDecimal installmentValue = amount.divide(installmentsBd, 2, RoundingMode.DOWN);
         BigDecimal firstInstallmentValue = amount.subtract(installmentValue.multiply(BigDecimal.valueOf(installments - 1)));
+
+        Transaction firstTx = null;
 
         for (int i = 1; i <= installments; i++) {
             YearMonth currentYearMonth = firstInvoiceMonth.plusMonths(i - 1);
@@ -93,6 +99,7 @@ public class CreditCardService {
                     .amount(valueForInstallment)
                     .type(TransactionType.DEBIT)
                     .description(installmentDescription)
+                    .category(category != null ? category : Category.UNCATEGORIZED)
                     .referenceDate(installmentRefDate)
                     .invoice(invoice)
                     .installmentNumber(i)
@@ -100,7 +107,17 @@ public class CreditCardService {
                     .status("CONFIRMED")
                     .build();
 
-            transactionRepository.save(transaction);
+            Transaction savedTx = transactionRepository.save(transaction);
+            if (i == 1) {
+                firstTx = savedTx;
+            }
         }
+
+        return firstTx;
+    }
+
+    @Transactional
+    public Transaction processPurchase(UUID creditCardId, BigDecimal amount, String description, int installments, OffsetDateTime purchaseDate) {
+        return processPurchase(creditCardId, amount, description, Category.UNCATEGORIZED, installments, purchaseDate);
     }
 }

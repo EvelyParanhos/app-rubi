@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rubi - Protótipo de Baixa Fidelidade</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.0.8">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.9">
 </head>
 <body>
   <div class="container">
@@ -12,7 +12,7 @@
     <header>
       <div>
         <h1>💎 Rubi - Protótipo de Baixa Fidelidade</h1>
-        <small>Interface Individual & Previsão Financeira de 12 Meses (v1.0.8)</small>
+        <small>Interface Individual & Previsão Financeira de 12 Meses (v1.0.9)</small>
       </div>
       <div class="user-status">
         <span id="authStatusBadge" class="badge logged-out">Desconectado</span>
@@ -434,32 +434,34 @@
                 <th>Tipo</th>
                 <th>Dia Venc.</th>
                 <th>Valor Previsto</th>
+                <th>Origem / Destino</th>
                 <th>Categoria</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody id="forecastTableBody">
-              <tr><td colspan="7">Carregando previsão financeira...</td></tr>
+              <tr><td colspan="8">Carregando previsão financeira...</td></tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Form Cadastrar Nova Recorrente -->
+        <!-- Form Cadastrar Nova Recorrente (Conta ou Cartão) -->
         <div class="section-grid mt-15">
           <div class="card" style="grid-column: span 2;">
-            <h3>➕ Cadastrar Regra Recorrente (Salário ou Despesa Fixa)</h3>
+            <h3 id="recFormTitle">➕ Cadastrar Regra Recorrente (Conta Bancária ou Assinatura de Cartão)</h3>
             <form id="recurringForm" onsubmit="handleRecurringSubmit(event)">
+              <input type="hidden" id="recMasterId">
               <div class="form-inline">
                 <div class="form-group">
                   <label for="recDescription">Descrição</label>
-                  <input type="text" id="recDescription" placeholder="Ex: Salário, Aluguel" required>
+                  <input type="text" id="recDescription" placeholder="Ex: Salário, Aluguel, Netflix" required>
                 </div>
                 <div class="form-group">
                   <label for="recType">Tipo</label>
                   <select id="recType" required>
                     <option value="INCOME">Salário / Entrada (INCOME)</option>
-                    <option value="EXPENSE">Despesa Fixa / Saída (EXPENSE)</option>
+                    <option value="EXPENSE">Despesa Fixa / Assinatura (EXPENSE)</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -475,11 +477,23 @@
                   <select id="recCategory" required></select>
                 </div>
                 <div class="form-group">
-                  <label for="recAccount">Conta Vinculada</label>
-                  <select id="recAccount" required></select>
+                  <label for="recTargetType">Método de Cobrança / Destino</label>
+                  <select id="recTargetType" onchange="toggleRecTargetSelects()" required>
+                    <option value="ACCOUNT">Debitar / Creditar em Conta Bancária</option>
+                    <option value="CARD">Lançar Fatura no Cartão de Crédito</option>
+                  </select>
+                </div>
+                <div class="form-group" id="recAccountGroup">
+                  <label for="recAccount">Conta Bancária</label>
+                  <select id="recAccount"></select>
+                </div>
+                <div class="form-group" id="recCardGroup" style="display: none;">
+                  <label for="recCard">Cartão de Crédito</label>
+                  <select id="recCard"></select>
                 </div>
                 <div style="align-self: flex-end;">
-                  <button type="submit" class="btn-success">Cadastrar Recorrente</button>
+                  <button type="submit" id="recSubmitBtn" class="btn-success">Cadastrar Recorrente</button>
+                  <button type="button" onclick="resetRecurringForm()" class="btn-sm" style="display:none;" id="recCancelBtn">Cancelar</button>
                 </div>
               </div>
             </form>
@@ -489,7 +503,7 @@
         <!-- Gerenciamento de Regras Recorrentes MESTRE -->
         <div class="card mt-15">
           <div class="flex-between">
-            <h3>⚙️ Regras Recorrentes Cadastradas (Master)</h3>
+            <h3>⚙️ Regras Recorrentes Cadastradas (Edição Mestre de Todos os Meses)</h3>
             <button onclick="loadRecurringMasterList()" class="btn-sm">🔄 Atualizar Mestre</button>
           </div>
           <table>
@@ -499,12 +513,13 @@
                 <th>Tipo</th>
                 <th>Valor Base</th>
                 <th>Dia Venc.</th>
+                <th>Origem / Destino</th>
                 <th>Categoria</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody id="recurringMasterTableBody">
-              <tr><td colspan="6">Clique em "Atualizar Mestre" para carregar.</td></tr>
+              <tr><td colspan="7">Clique em "Atualizar Mestre" para carregar.</td></tr>
             </tbody>
           </table>
         </div>
@@ -520,12 +535,12 @@
         <button onclick="clearLogs()" class="btn-sm" style="padding: 2px 6px; font-size: 0.7rem;">Limpar Logs</button>
       </h4>
       <div id="logContent">
-        <div class="log-entry info">Sistema iniciado (v1.0.8). Previsão de 12 Meses & Checklist Ativado.</div>
+        <div class="log-entry info">Sistema iniciado (v1.0.9). Edição Mestre & Recorrentes em Cartão de Crédito Ativados.</div>
       </div>
     </div>
 
   </div>
 
-  <script src="/js/app.js?v=1.0.8"></script>
+  <script src="/js/app.js?v=1.0.9"></script>
 </body>
 </html>

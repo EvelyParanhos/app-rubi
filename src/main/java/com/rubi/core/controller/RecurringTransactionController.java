@@ -31,6 +31,7 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
 
         RecurringTransaction rec = recurringTransactionService.createRecurringTransaction(
                 request.getAccountId(),
+                request.getCreditCardId(),
                 request.getDescription(),
                 BigDecimal.valueOf(request.getAmount()),
                 request.getType().name(),
@@ -38,18 +39,29 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
                 domainCategory
         );
 
-        CategoryEnum catEnum = rec.getCategory() != null ? CategoryEnum.fromValue(rec.getCategory().name()) : CategoryEnum.UNCATEGORIZED;
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(rec));
+    }
 
-        RecurringTransactionResponse response = new RecurringTransactionResponse()
-                .id(rec.getId())
-                .accountId(rec.getAccount() != null ? rec.getAccount().getId() : null)
-                .description(rec.getDescription())
-                .amount(rec.getAmount().doubleValue())
-                .type(rec.getType().name())
-                .dueDay(rec.getDueDay())
-                .category(catEnum);
+    @Override
+    public ResponseEntity<RecurringTransactionResponse> updateRecurringTransaction(UUID id, RecurringTransactionCreateRequest request) {
+        UUID currentUserId = getCurrentUserId();
+        Category domainCategory = request.getCategory() != null ? Category.valueOf(request.getCategory().name()) : Category.UNCATEGORIZED;
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        BigDecimal amt = request.getAmount() != null ? BigDecimal.valueOf(request.getAmount()) : null;
+
+        RecurringTransaction updated = recurringTransactionService.updateRecurringTransaction(
+                id,
+                currentUserId,
+                request.getAccountId(),
+                request.getCreditCardId(),
+                request.getDescription(),
+                amt,
+                request.getType() != null ? request.getType().name() : null,
+                request.getDueDay() != null ? request.getDueDay() : 0,
+                domainCategory
+        );
+
+        return ResponseEntity.ok(toResponse(updated));
     }
 
     @Override
@@ -58,17 +70,7 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
         List<RecurringTransaction> recList = recurringTransactionService.getRecurringTransactions(userId);
 
         List<RecurringTransactionResponse> responseList = recList.stream()
-                .map(r -> {
-                    CategoryEnum catEnum = r.getCategory() != null ? CategoryEnum.fromValue(r.getCategory().name()) : CategoryEnum.UNCATEGORIZED;
-                    return new RecurringTransactionResponse()
-                            .id(r.getId())
-                            .accountId(r.getAccount() != null ? r.getAccount().getId() : null)
-                            .description(r.getDescription())
-                            .amount(r.getAmount().doubleValue())
-                            .type(r.getType().name())
-                            .dueDay(r.getDueDay())
-                            .category(catEnum);
-                })
+                .map(this::toResponse)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responseList);
@@ -100,7 +102,7 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
 
         TransactionResponse txResponse = new TransactionResponse()
                 .id(tx.getId())
-                .accountId(tx.getAccount().getId())
+                .accountId(tx.getAccount() != null ? tx.getAccount().getId() : null)
                 .accountName(tx.getAccount() != null ? tx.getAccount().getName() : null)
                 .amount(tx.getAmount().doubleValue())
                 .type(tx.getType().name())
@@ -133,6 +135,20 @@ public class RecurringTransactionController implements RecurringTransactionsApi 
         UUID currentUserId = getCurrentUserId();
         recurringTransactionService.deleteRecurringTransaction(id, currentUserId);
         return ResponseEntity.noContent().build();
+    }
+
+    private RecurringTransactionResponse toResponse(RecurringTransaction r) {
+        CategoryEnum catEnum = r.getCategory() != null ? CategoryEnum.fromValue(r.getCategory().name()) : CategoryEnum.UNCATEGORIZED;
+        return new RecurringTransactionResponse()
+                .id(r.getId())
+                .accountId(r.getAccount() != null ? r.getAccount().getId() : null)
+                .creditCardId(r.getCreditCard() != null ? r.getCreditCard().getId() : null)
+                .creditCardName(r.getCreditCard() != null ? r.getCreditCard().getName() : null)
+                .description(r.getDescription())
+                .amount(r.getAmount().doubleValue())
+                .type(r.getType().name())
+                .dueDay(r.getDueDay())
+                .category(catEnum);
     }
 
     private UUID getCurrentUserId() {

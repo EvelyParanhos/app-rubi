@@ -36,7 +36,7 @@ public class ForecastService {
             startYm = YearMonth.now();
         }
 
-        List<RecurringTransaction> userRecList = recurringTransactionRepository.findByAccountOwnerIdAndIsActiveTrue(userId);
+        List<RecurringTransaction> userRecList = recurringTransactionRepository.findAllByOwnerIdAndIsActiveTrue(userId);
         List<CreditCard> userCards = creditCardRepository.findByAccountOwnerIdAndIsActiveTrue(userId);
 
         List<MonthForecastItem> monthForecastList = new ArrayList<>();
@@ -47,6 +47,8 @@ public class ForecastService {
 
             BigDecimal totalIncome = BigDecimal.ZERO;
             BigDecimal totalExpense = BigDecimal.ZERO;
+            BigDecimal unfulfilledCreditCardRecTotal = BigDecimal.ZERO;
+
             List<ForecastChecklistItem> checklistItems = new ArrayList<>();
 
             for (RecurringTransaction rec : userRecList) {
@@ -72,10 +74,16 @@ public class ForecastService {
                 String statusStr = isFulfilled ? "REALIZADO" : "PREVISTO";
                 UUID fulfilledTxId = isFulfilled ? fulfillmentOpt.get().getTransaction().getId() : null;
 
-                if (rec.getType() == RecurringTransactionType.INCOME) {
-                    totalIncome = totalIncome.add(effectiveAmount);
+                if (rec.getCreditCard() != null) {
+                    if (!isFulfilled && rec.getType() == RecurringTransactionType.EXPENSE) {
+                        unfulfilledCreditCardRecTotal = unfulfilledCreditCardRecTotal.add(effectiveAmount);
+                    }
                 } else {
-                    totalExpense = totalExpense.add(effectiveAmount);
+                    if (rec.getType() == RecurringTransactionType.INCOME) {
+                        totalIncome = totalIncome.add(effectiveAmount);
+                    } else {
+                        totalExpense = totalExpense.add(effectiveAmount);
+                    }
                 }
 
                 CategoryEnum catEnum = rec.getCategory() != null ? CategoryEnum.fromValue(rec.getCategory().name()) : CategoryEnum.UNCATEGORIZED;
@@ -88,6 +96,8 @@ public class ForecastService {
                         .dueDay(effectiveDueDay)
                         .category(catEnum)
                         .accountId(rec.getAccount() != null ? rec.getAccount().getId() : null)
+                        .creditCardId(rec.getCreditCard() != null ? rec.getCreditCard().getId() : null)
+                        .creditCardName(rec.getCreditCard() != null ? rec.getCreditCard().getName() : null)
                         .status(ForecastChecklistItem.StatusEnum.fromValue(statusStr))
                         .fulfilledTransactionId(fulfilledTxId)
                         .isOverridden(isOverridden);
@@ -96,7 +106,7 @@ public class ForecastService {
             }
 
             // Sum credit card invoice totals for current month
-            BigDecimal creditCardInvoicesTotal = BigDecimal.ZERO;
+            BigDecimal creditCardInvoicesTotal = unfulfilledCreditCardRecTotal;
             for (CreditCard card : userCards) {
                 Optional<Invoice> invoiceOpt = invoiceRepository.findByCreditCardIdAndReferenceMonth(card.getId(), currentMonthStr);
                 if (invoiceOpt.isPresent()) {

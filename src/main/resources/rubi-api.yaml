@@ -398,6 +398,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/RecurringTransactionResponse'
   /api/recurring-transactions/{id}:
+    put:
+      tags:
+        - recurring-transactions
+      summary: Update master recurring transaction rule for all future months
+      operationId: updateRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringTransactionCreateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTransactionResponse'
     delete:
       tags:
         - recurring-transactions
@@ -779,13 +804,15 @@ components:
     RecurringTransactionCreateRequest:
       type: object
       required:
-        - account_id
         - description
         - amount
         - type
         - due_day
       properties:
         account_id:
+          type: string
+          format: uuid
+        credit_card_id:
           type: string
           format: uuid
         description:
@@ -817,6 +844,11 @@ components:
         account_id:
           type: string
           format: uuid
+        credit_card_id:
+          type: string
+          format: uuid
+        credit_card_name:
+          type: string
         description:
           type: string
         amount:
@@ -1011,6 +1043,11 @@ components:
         account_id:
           type: string
           format: uuid
+        credit_card_id:
+          type: string
+          format: uuid
+        credit_card_name:
+          type: string
         status:
           type: string
           enum:
