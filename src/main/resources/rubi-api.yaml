@@ -726,6 +726,12 @@ components:
         goal_amount:
           type: number
           format: double
+        target_amount:
+          type: number
+          format: double
+        target_date:
+          type: string
+          format: date
     AccountCreateResponse:
       type: object
       required:
@@ -755,6 +761,20 @@ components:
           type: number
           format: double
         current_month_progress:
+          type: number
+          format: double
+        target_amount:
+          type: number
+          format: double
+        target_date:
+          type: string
+          format: date
+        months_remaining:
+          type: integer
+        suggested_monthly_contribution:
+          type: number
+          format: double
+        total_progress_percentage:
           type: number
           format: double
     TransferRequest:

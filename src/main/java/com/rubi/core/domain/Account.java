@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,6 +35,12 @@ public class Account {
 
     @Column(name = "goal_amount", precision = 19, scale = 4)
     private BigDecimal goalAmount;
+
+    @Column(name = "target_amount", precision = 19, scale = 4)
+    private BigDecimal targetAmount;
+
+    @Column(name = "target_date")
+    private LocalDate targetDate;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rubi - Protótipo de Baixa Fidelidade</title>
-  <link rel="stylesheet" href="/css/style.css?v=1.1.1">
+  <link rel="stylesheet" href="/css/style.css?v=1.1.2">
 </head>
 <body>
   <div class="container">
@@ -12,7 +12,7 @@
     <header>
       <div>
         <h1>💎 Rubi - Protótipo de Baixa Fidelidade</h1>
-        <small>Interface Individual & Gestão de Caixinhas (`POCKET`) e Metas por Conta (v1.1.1)</small>
+        <small>Interface Individual & Gestão de Caixinhas (`POCKET`) e Metas com/sem Prazo (v1.1.2)</small>
       </div>
       <div class="user-status">
         <span id="authStatusBadge" class="badge logged-out">Desconectado</span>
@@ -114,7 +114,7 @@
               <input type="hidden" id="accountId">
               <div class="form-group">
                 <label for="accName">Nome da Conta / Caixinha</label>
-                <input type="text" id="accName" placeholder="Ex: Nubank Corrente, Caixinha Reserva, Ações" required>
+                <input type="text" id="accName" placeholder="Ex: Nubank Corrente, Caixinha Viagem, Ações" required>
               </div>
               <div class="form-group">
                 <label for="accType">Tipo de Conta</label>
@@ -123,17 +123,38 @@
                   <option value="POCKET">POCKET (Caixinha / Reserva / Investimento)</option>
                   <option value="LIABILITY">LIABILITY (Passivo / Cartão de Crédito)</option>
                 </select>
-                <small style="color: #666;">* Contas <strong>POCKET (Caixinhas)</strong> são voltadas para dinheiro guardado e possuem meta mensal de aporte.</small>
+                <small style="color: #666;">* Contas <strong>POCKET (Caixinhas)</strong> são voltadas para dinheiro guardado e possuem suporte a metas com ou sem prazo.</small>
               </div>
               <div class="form-group">
                 <label for="accBalance">Saldo Inicial (R$)</label>
                 <input type="number" step="0.01" id="accBalance" placeholder="0.00" value="0.00" required>
               </div>
-              <div class="form-group" id="accGoalGroup" style="display: none;">
-                <label for="accGoal">Meta Mensal de Aporte (R$)</label>
-                <input type="number" step="0.01" id="accGoal" placeholder="Ex: 500.00 (Quanto pretende guardar por mês)">
-                <small style="color: #666;">Transferências para esta Caixinha somam no progresso da meta.</small>
+
+              <!-- Opções de Meta para Caixinha -->
+              <div id="accGoalGroup" style="display: none; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                <h4 style="margin-bottom: 8px; color: #495057;">🎯 Configuração da Meta da Caixinha</h4>
+                
+                <div class="form-group">
+                  <label for="accGoal">Meta Mensal Contínua de Aporte (R$)</label>
+                  <input type="number" step="0.01" id="accGoal" placeholder="Ex: 500.00 (Quanto quer guardar todo mês)">
+                  <small style="color: #666;">Aporte mensal contínuo sem data limite.</small>
+                </div>
+
+                <hr style="border: 0; border-top: 1px dashed #ced4da; margin: 10px 0;">
+
+                <div class="form-group">
+                  <label for="accTargetAmount">🏆 Meta de Longo Prazo / Valor Alvo Total (R$)</label>
+                  <input type="number" step="0.01" id="accTargetAmount" placeholder="Ex: 10000.00 (Valor final desejado)">
+                  <small style="color: #666;">Ex: R$ 10.000,00 para viagem ou reserva.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="accTargetDate">📅 Data Limite / Prazo Alvo (Opcional)</label>
+                  <input type="date" id="accTargetDate">
+                  <small style="color: #666;">Se informado, o sistema calcula o <strong>Aporte Mensal Necessário</strong> automático!</small>
+                </div>
               </div>
+
               <button type="submit" id="accSubmitBtn" class="btn-success">Salvar Conta / Caixinha</button>
               <button type="button" onclick="resetAccountForm()" class="btn-sm" style="display:none;" id="accCancelBtn">Cancelar Edição</button>
             </form>
@@ -147,8 +168,8 @@
                 <tr>
                   <th>Nome</th>
                   <th>Tipo</th>
-                  <th>Saldo Atual</th>
-                  <th>Meta de Aporte Mensal (`POCKET`)</th>
+                  <th>Saldo Actual</th>
+                  <th>Meta de Economia & Aporte Sugerido (`POCKET`)</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -584,12 +605,12 @@
         <button onclick="clearLogs()" class="btn-sm" style="padding: 2px 6px; font-size: 0.7rem;">Limpar Logs</button>
       </h4>
       <div id="logContent">
-        <div class="log-entry info">Sistema iniciado (v1.1.1). Caixinhas (`POCKET`), Inferência em Transferências e Metas por Conta Ativados.</div>
+        <div class="log-entry info">Sistema iniciado (v1.1.2). Metas com/sem Prazo e Cálculo de Aporte Mensal Ativados nas Caixinhas (`POCKET`).</div>
       </div>
     </div>
 
   </div>
 
-  <script src="/js/app.js?v=1.1.1"></script>
+  <script src="/js/app.js?v=1.1.2"></script>
 </body>
 </html>

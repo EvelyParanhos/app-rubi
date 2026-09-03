@@ -23,7 +23,7 @@ public class LedgerService {
     private final UserRepository userRepository;
 
     @Transactional
-    public Account createAccount(UUID ownerId, String name, String type, BigDecimal initialBalance, BigDecimal goalAmount) {
+    public Account createAccount(UUID ownerId, String name, String type, BigDecimal initialBalance, BigDecimal goalAmount, BigDecimal targetAmount, java.time.LocalDate targetDate) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
 
@@ -34,6 +34,8 @@ public class LedgerService {
                 .name(name)
                 .type(accountType)
                 .goalAmount(goalAmount)
+                .targetAmount(targetAmount)
+                .targetDate(targetDate)
                 .isActive(true)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -55,6 +57,10 @@ public class LedgerService {
         }
 
         return savedAccount;
+    }
+
+    public Account createAccount(UUID ownerId, String name, String type, BigDecimal initialBalance, BigDecimal goalAmount) {
+        return createAccount(ownerId, name, type, initialBalance, goalAmount, null, null);
     }
 
     public Account createAccount(UUID ownerId, String name, String type, BigDecimal initialBalance) {

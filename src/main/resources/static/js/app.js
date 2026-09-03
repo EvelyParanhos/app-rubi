@@ -1,4 +1,4 @@
-/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.1.1 - Caixinhas POCKET & Metas por Conta) */
+/* JavaScript do Protótipo de Baixa Fidelidade - Rubi Finanças (v1.1.2 - Metas com/sem Prazo em Caixinhas POCKET) */
 
 function getApiBase() {
   if (window.location.protocol === 'file:') {
@@ -273,25 +273,56 @@ async function loadAccounts() {
       const isPocket = acc.type === 'POCKET' || acc.type === 'SAVINGS';
 
       let goalHtml = 'N/A';
-      if (isPocket && acc.goal_amount) {
-        const prog = acc.current_month_progress || 0.0;
-        const pct = Math.min((prog / acc.goal_amount) * 100.0, 100.0);
-        goalHtml = `
-          <div><strong>${formatCurrency(acc.goal_amount)}</strong>/mês</div>
-          <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; overflow: hidden; height: 12px; margin-top: 4px;">
-            <div style="width: ${pct}%; background-color: var(--success-color); height: 100%;"></div>
-          </div>
-          <small>${formatCurrency(prog)} guardados (${pct.toFixed(0)}%)</small>
-        `;
-      } else if (isPocket) {
-        goalHtml = '<small style="color:#666;">Sem meta configurada</small>';
+      if (isPocket) {
+        let items = [];
+
+        // Meta Mensal Contínua
+        if (acc.goal_amount) {
+          const prog = acc.current_month_progress || 0.0;
+          const pct = Math.min((prog / acc.goal_amount) * 100.0, 100.0);
+          items.push(`
+            <div style="margin-bottom: 6px;">
+              <small style="color:#28a745; font-weight:bold;">🔄 Aporte Mensal Contínuo:</small> ${formatCurrency(acc.goal_amount)}/mês
+              <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; overflow: hidden; height: 8px; margin-top: 2px;">
+                <div style="width: ${pct}%; background-color: var(--success-color); height: 100%;"></div>
+              </div>
+              <small style="font-size:0.75rem; color:#666;">No mês: ${formatCurrency(prog)} (${pct.toFixed(0)}%)</small>
+            </div>
+          `);
+        }
+
+        // Meta com Prazo Final
+        if (acc.target_amount) {
+          const totalPct = acc.total_progress_percentage || 0.0;
+          const formattedDate = acc.target_date ? new Date(acc.target_date + 'T12:00:00').toLocaleDateString('pt-BR') : 'Sem prazo';
+          const suggested = acc.suggested_monthly_contribution;
+          const monthsRem = acc.months_remaining;
+
+          items.push(`
+            <div style="background: #eef6fc; border: 1px solid #b6d4fe; border-radius: 4px; padding: 6px; margin-top: 4px;">
+              <small style="color:#0366d6; font-weight:bold;">🏆 Meta Final:</small> <strong>${formatCurrency(acc.target_amount)}</strong>
+              <div><small style="color:#495057;">Prazo: <strong>${formattedDate}</strong> (${monthsRem || 0} meses)</small></div>
+              ${suggested !== null && suggested !== undefined ? `<div><small style="color:#28a745; font-weight:bold;">💡 Aporte sugerido: ${formatCurrency(suggested)}/mês</small></div>` : ''}
+              <div style="width: 100%; background-color: #d0e5f5; border-radius: 4px; overflow: hidden; height: 10px; margin-top: 4px;">
+                <div style="width: ${Math.min(totalPct, 100)}%; background-color: #0366d6; height: 100%;"></div>
+              </div>
+              <small style="font-size:0.75rem; color:#0366d6;">Acumulado: ${totalPct.toFixed(1)}%</small>
+            </div>
+          `);
+        }
+
+        if (items.length > 0) {
+          goalHtml = items.join('');
+        } else {
+          goalHtml = '<small style="color:#666;">Sem meta definida</small>';
+        }
       }
 
       tr.innerHTML = `
         <td><strong>${escapeHtml(acc.name)}</strong> ${isPocket ? '<span class="badge" style="background:#eef6fc; color:#0366d6; border:1px solid #b6d4fe;">📦 Caixinha</span>' : ''}</td>
         <td>${typeLabel}</td>
         <td><strong>${formatCurrency(acc.balance)}</strong></td>
-        <td style="min-width: 160px;">${goalHtml}</td>
+        <td style="min-width: 220px;">${goalHtml}</td>
         <td>
           <button onclick="editAccount('${acc.id}')" class="btn-sm">Editar</button>
           <button onclick="deleteAccount('${acc.id}')" class="btn-sm btn-danger">Excluir</button>
@@ -310,6 +341,8 @@ function resetAccountForm() {
   document.getElementById('accType').value = 'CHECKING';
   document.getElementById('accBalance').value = '0.00';
   document.getElementById('accGoal').value = '';
+  document.getElementById('accTargetAmount').value = '';
+  document.getElementById('accTargetDate').value = '';
   toggleAccountGoalInput();
 
   document.getElementById('accountFormTitle').textContent = 'Nova Conta / Caixinha';
@@ -325,6 +358,8 @@ function editAccount(id) {
   document.getElementById('accType').value = acc.type === 'SAVINGS' ? 'POCKET' : acc.type;
   document.getElementById('accBalance').value = acc.balance;
   document.getElementById('accGoal').value = acc.goal_amount || '';
+  document.getElementById('accTargetAmount').value = acc.target_amount || '';
+  document.getElementById('accTargetDate').value = acc.target_date || '';
   toggleAccountGoalInput();
 
   document.getElementById('accountFormTitle').textContent = 'Editar Conta / Caixinha';
@@ -336,12 +371,16 @@ async function handleAccountSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('accountId').value;
   const goalVal = document.getElementById('accGoal').value;
+  const targetAmtVal = document.getElementById('accTargetAmount').value;
+  const targetDateVal = document.getElementById('accTargetDate').value;
 
   const body = {
     name: document.getElementById('accName').value.trim(),
     type: document.getElementById('accType').value,
     initial_balance: parseFloat(document.getElementById('accBalance').value),
-    goal_amount: goalVal ? parseFloat(goalVal) : null
+    goal_amount: goalVal ? parseFloat(goalVal) : null,
+    target_amount: targetAmtVal ? parseFloat(targetAmtVal) : null,
+    target_date: targetDateVal ? targetDateVal : null
   };
 
   let res;
@@ -1060,7 +1099,6 @@ function populateCategorySelects() {
     const currentVal = el.value;
     el.innerHTML = id === 'filterCategory' ? '<option value="">Todas as Categorias</option>' : '';
     Object.keys(CATEGORIES).forEach(catKey => {
-      // For budget category limit, skip INVESTMENTS as goals are per POCKET account
       if (id === 'bgCategory' && catKey === 'INVESTMENTS') return;
 
       const opt = document.createElement('option');

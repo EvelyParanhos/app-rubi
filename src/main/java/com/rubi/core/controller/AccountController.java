@@ -16,6 +16,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,12 +40,20 @@ public class AccountController implements AccountsApi {
         BigDecimal goalAmount = accountCreateRequest.getGoalAmount() != null ?
                 BigDecimal.valueOf(accountCreateRequest.getGoalAmount()) : null;
 
+        BigDecimal targetAmount = accountCreateRequest.getTargetAmount() != null ?
+                BigDecimal.valueOf(accountCreateRequest.getTargetAmount()) : null;
+
+        LocalDate targetDate = accountCreateRequest.getTargetDate() != null ?
+                accountCreateRequest.getTargetDate() : null;
+
         Account account = ledgerService.createAccount(
                 ownerId,
                 accountCreateRequest.getName(),
                 accountCreateRequest.getType().name(),
                 initialBalance,
-                goalAmount
+                goalAmount,
+                targetAmount,
+                targetDate
         );
 
         AccountCreateResponse response = new AccountCreateResponse()
@@ -59,19 +70,47 @@ public class AccountController implements AccountsApi {
         List<AccountResponse> responseList = accounts.stream()
                 .map(a -> {
                     BigDecimal bal = ledgerService.getAccountBalance(a.getId());
+                    if (bal == null) bal = BigDecimal.ZERO;
+
                     Double progress = null;
+                    Integer monthsRemaining = null;
+                    Double suggestedContribution = null;
+                    Double totalProgressPct = null;
+
                     if (a.getType() == AccountType.POCKET) {
                         BigDecimal monthCredits = ledgerService.getPocketCurrentMonthProgress(a.getId());
                         progress = monthCredits != null ? monthCredits.doubleValue() : 0.0;
+
+                        if (a.getTargetAmount() != null && a.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
+                            BigDecimal ratio = bal.divide(a.getTargetAmount(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+                            totalProgressPct = Math.min(100.0, ratio.doubleValue());
+
+                            if (a.getTargetDate() != null) {
+                                long mRem = ChronoUnit.MONTHS.between(LocalDate.now().withDayOfMonth(1), a.getTargetDate().withDayOfMonth(1));
+                                monthsRemaining = (int) Math.max(1, mRem);
+
+                                BigDecimal remainingVal = a.getTargetAmount().subtract(bal);
+                                if (remainingVal.compareTo(BigDecimal.ZERO) > 0) {
+                                    suggestedContribution = remainingVal.divide(BigDecimal.valueOf(monthsRemaining), 2, RoundingMode.HALF_UP).doubleValue();
+                                } else {
+                                    suggestedContribution = 0.0;
+                                }
+                            }
+                        }
                     }
 
                     return new AccountResponse()
                             .id(a.getId())
                             .name(a.getName())
                             .type(a.getType().name())
-                            .balance(bal != null ? bal.doubleValue() : 0.0)
+                            .balance(bal.doubleValue())
                             .goalAmount(a.getGoalAmount() != null ? a.getGoalAmount().doubleValue() : null)
-                            .currentMonthProgress(progress);
+                            .currentMonthProgress(progress)
+                            .targetAmount(a.getTargetAmount() != null ? a.getTargetAmount().doubleValue() : null)
+                            .targetDate(a.getTargetDate())
+                            .monthsRemaining(monthsRemaining)
+                            .suggestedMonthlyContribution(suggestedContribution)
+                            .totalProgressPercentage(totalProgressPct);
                 })
                 .collect(Collectors.toList());
 
@@ -90,11 +129,20 @@ public class AccountController implements AccountsApi {
 
         account.setName(accountCreateRequest.getName());
         account.setType(AccountType.valueOf(accountCreateRequest.getType().name()));
+
         if (accountCreateRequest.getGoalAmount() != null) {
             account.setGoalAmount(BigDecimal.valueOf(accountCreateRequest.getGoalAmount()));
         } else {
             account.setGoalAmount(null);
         }
+
+        if (accountCreateRequest.getTargetAmount() != null) {
+            account.setTargetAmount(BigDecimal.valueOf(accountCreateRequest.getTargetAmount()));
+        } else {
+            account.setTargetAmount(null);
+        }
+
+        account.setTargetDate(accountCreateRequest.getTargetDate());
 
         accountRepository.save(account);
         return ResponseEntity.ok().build();
