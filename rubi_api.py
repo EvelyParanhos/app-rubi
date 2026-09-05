@@ -98,12 +98,23 @@ class RubiApiClient:
         res = self._request("GET", f"/credit-cards/{card_id}/invoices")
         return res if isinstance(res, list) else []
 
+    def get_invoice_by_id(self, invoice_id: str) -> dict:
+        return self._request("GET", f"/invoices/{invoice_id}")
+
     def pay_invoice(self, invoice_id: str, source_account_id: str, amount: float) -> dict:
         payload = {
             "source_account_id": source_account_id,
             "amount": amount
         }
         return self._request("POST", f"/invoices/{invoice_id}/pay", payload)
+
+    def get_monthly_forecast(self, start_month: str = None, months: int = 12) -> dict:
+        params = {}
+        if start_month:
+            params["start_month"] = start_month
+        if months:
+            params["months"] = months
+        return self._request("GET", "/forecast/monthly", params=params)
 
     def create_transaction(self, account_id: str, amount: float, trans_type: str, description: str = None, category: str = "UNCATEGORIZED", reference_date: str = None) -> dict:
         payload = {

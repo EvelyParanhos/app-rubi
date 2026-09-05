@@ -16,7 +16,7 @@ from handlers.auth import get_auth_conversation_handler
 from handlers.transaction import get_transaction_conversation_handler, handle_delete_tx, execute_delete_tx
 from handlers.card import get_card_conversation_handler
 from handlers.settlement import handle_acerto, execute_quitar_acerto
-from handlers.statement import handle_extrato, handle_main_menu
+from handlers.statement import handle_extrato, handle_main_menu, handle_previsao
 
 load_dotenv()
 
@@ -84,6 +84,9 @@ def main():
 
     app.add_handler(CommandHandler("extrato", handle_extrato))
     app.add_handler(CallbackQueryHandler(handle_extrato, pattern="^cmd_extrato$"))
+
+    app.add_handler(CommandHandler("previsao", handle_previsao))
+    app.add_handler(CallbackQueryHandler(handle_previsao, pattern="^cmd_previsao$"))
 
     app.add_handler(CallbackQueryHandler(handle_delete_tx, pattern="^delete_tx_"))
     app.add_handler(CallbackQueryHandler(execute_delete_tx, pattern="^confirm_del_"))

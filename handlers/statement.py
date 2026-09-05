@@ -95,3 +95,75 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
+
+@require_auth
+async def handle_previsao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    client = get_client(chat_id)
+
+    try:
+        forecast_data = client.get_monthly_forecast(months=12)
+        months_list = forecast_data.get("months", []) if isinstance(forecast_data, dict) else []
+
+        if not months_list:
+            msg_text = "ℹ️ Nenhuma previsão financeira encontrada no momento."
+            if update.callback_query:
+                try:
+                    await update.callback_query.answer()
+                except Exception:
+                    pass
+                await update.callback_query.edit_message_text(msg_text, reply_markup=get_main_menu_keyboard(), parse_mode="Markdown")
+            else:
+                await update.message.reply_text(msg_text, reply_markup=get_main_menu_keyboard(), parse_mode="Markdown")
+            return
+
+        lines = [
+            "🔮 **Previsão Financeira (Próximos 12 Meses)**\n",
+            "Resumo mensal estimado de receitas, despesas fixas, faturas e saldo líquido:\n"
+        ]
+
+        total_projected_balance = 0.0
+
+        for item in months_list:
+            m = item.get("month", "")
+            inc = item.get("total_income", 0.0)
+            exp = item.get("total_expense", 0.0)
+            card_tot = item.get("credit_card_invoices_total", 0.0)
+            net = item.get("net_balance", 0.0)
+            total_projected_balance += net
+
+            badge = "🟢" if net >= 0 else "🔴"
+            lines.append(f"📅 **{m}**: {badge} R$ {net:+.2f}")
+            lines.append(f"   ├ 📥 Receitas: R$ {inc:.2f}")
+            lines.append(f"   ├ 📤 Gastos Fixos: R$ {exp:.2f}")
+            lines.append(f"   └ 💳 Cartões: R$ {card_tot:.2f}\n")
+
+        lines.append(f"💰 **Saldo Acumulado Projetado em 12 Meses**: **R$ {total_projected_balance:+.2f}**")
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Menu Principal", callback_data="cmd_main_menu")]
+        ])
+
+        msg_text = "\n".join(lines)
+
+        if update.callback_query:
+            try:
+                await update.callback_query.answer()
+            except Exception:
+                pass
+            await update.callback_query.edit_message_text(msg_text, reply_markup=keyboard, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(msg_text, reply_markup=keyboard, parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"[PREVISÃO ERRO] {e}")
+        err_msg = f"❌ Erro ao obter previsão financeira: {e}"
+        if update.callback_query:
+            try:
+                await update.callback_query.answer()
+            except Exception:
+                pass
+            await update.callback_query.edit_message_text(err_msg, reply_markup=get_main_menu_keyboard())
+        else:
+            await update.message.reply_text(err_msg, reply_markup=get_main_menu_keyboard())
+

@@ -238,7 +238,8 @@ def get_card_conversation_handler():
     return ConversationHandler(
         entry_points=[
             CommandHandler("fatura", start_fatura),
-            CallbackQueryHandler(start_fatura, pattern="^cmd_fatura$")
+            CommandHandler("cartoes", start_fatura),
+            CallbackQueryHandler(start_fatura, pattern="^(cmd_fatura|cmd_cartoes)$")
         ],
         states={
             CARD_SELECT: [CallbackQueryHandler(card_selected, pattern="^card_")],
